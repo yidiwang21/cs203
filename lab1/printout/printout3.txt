@@ -1,0 +1,61 @@
+wyd@wyd-XPS-8930:~/Documents/stud/cs203/cs203/lab1/Pipesim$ ./pipesim -f 1 instruction3.txt 
+# EXEC/MEM -> EXEC forwarding enabled...
+Loading application...instruction3.txt
+Read file completed!!
+Printing Application: 
+ADD r1 r2 r3
+SUB r2 r3 r1
+ADD r4 r3 r1
+SUB r3 r1 r5
+LW r6 r3
+SW r6 r4
+Initializing pipeline...
+Cycle	IF		ID		EXEC		MEM		WB
+0	*         	*         	*         	*         	*         
+1	ADD r1 r2 r3	*         	*         	*         	*         
+2	SUB r2 r3 r1	ADD r1 r2 r3	*         	*         	*         
+3	ADD r4 r3 r1	SUB r2 r3 r1	ADD r1 r2 r3	*         	*         
+4	SUB r3 r1 r5	ADD r4 r3 r1	SUB r2 r3 r1	ADD r1 r2 r3	*         
+5	SUB r3 r1 r5	ADD r4 r3 r1	*         	SUB r2 r3 r1	ADD r1 r2 r3
+6	LW r6 r3	SUB r3 r1 r5	ADD r4 r3 r1	*         	SUB r2 r3 r1
+7	SW r6 r4	LW r6 r3	SUB r3 r1 r5	ADD r4 r3 r1	*         
+8	*         	SW r6 r4	LW r6 r3	SUB r3 r1 r5	ADD r4 r3 r1
+9	*         	SW r6 r4	*         	LW r6 r3	SUB r3 r1 r5
+10	*         	SW r6 r4	*         	*         	LW r6 r3
+11	*         	*         	SW r6 r4	*         	*         
+12	*         	*         	*         	SW r6 r4	*         
+13	*         	*         	*         	*         	SW r6 r4
+14	*         	*         	*         	*         	*         
+Completed in 13 cycles
+
+================================================================================================
+================================================================================================
+
+wyd@wyd-XPS-8930:~/Documents/stud/cs203/cs203/lab1/Pipesim$ ./pipesim -f 2 instruction3.txt 
+# EXEC/MEM -> EXEC & MEM/WB -> EXEC forwarding enabled...
+Loading application...instruction3.txt
+Read file completed!!
+Printing Application: 
+ADD r1 r2 r3
+SUB r2 r3 r1
+ADD r4 r3 r1
+SUB r3 r1 r5
+LW r6 r3
+SW r6 r4
+Initializing pipeline...
+Cycle	IF		ID		EXEC		MEM		WB
+0	*         	*         	*         	*         	*         
+1	ADD r1 r2 r3	*         	*         	*         	*         
+2	SUB r2 r3 r1	ADD r1 r2 r3	*         	*         	*         
+3	ADD r4 r3 r1	SUB r2 r3 r1	ADD r1 r2 r3	*         	*         
+4	SUB r3 r1 r5	ADD r4 r3 r1	SUB r2 r3 r1	ADD r1 r2 r3	*         
+5	LW r6 r3	SUB r3 r1 r5	ADD r4 r3 r1	SUB r2 r3 r1	ADD r1 r2 r3
+6	SW r6 r4	LW r6 r3	SUB r3 r1 r5	ADD r4 r3 r1	SUB r2 r3 r1
+7	*         	SW r6 r4	LW r6 r3	SUB r3 r1 r5	ADD r4 r3 r1
+8	*         	SW r6 r4	*         	LW r6 r3	SUB r3 r1 r5
+9	*         	*         	SW r6 r4	*         	LW r6 r3
+10	*         	*         	*         	SW r6 r4	*         
+11	*         	*         	*         	*         	SW r6 r4
+12	*         	*         	*         	*         	*         
+Completed in 11 cycles
+

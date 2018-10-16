@@ -1,0 +1,78 @@
+wyd@wyd-XPS-8930:~/Documents/stud/cs203/cs203/lab1/Pipesim$ ./pipesim -f 1 instruction2.txt 
+# EXEC/MEM -> EXEC forwarding enabled...
+Loading application...instruction2.txt
+Read file completed!!
+Printing Application: 
+ADD r1 r2 r3
+SW r1 r2
+LW r7 r2
+ADD r5 r7 r1
+LW r8 r2
+SW r7 r8
+ADD r8 r8 r2
+LW r9 r8
+SW r9 r8
+Initializing pipeline...
+Cycle	IF		ID		EXEC		MEM		WB
+0	*         	*         	*         	*         	*         
+1	ADD r1 r2 r3	*         	*         	*         	*         
+2	SW r1 r2	ADD r1 r2 r3	*         	*         	*         
+3	LW r7 r2	SW r1 r2	ADD r1 r2 r3	*         	*         
+4	ADD r5 r7 r1	LW r7 r2	SW r1 r2	ADD r1 r2 r3	*         
+5	LW r8 r2	ADD r5 r7 r1	LW r7 r2	SW r1 r2	ADD r1 r2 r3
+6	LW r8 r2	ADD r5 r7 r1	*         	LW r7 r2	SW r1 r2
+7	LW r8 r2	ADD r5 r7 r1	*         	*         	LW r7 r2
+8	SW r7 r8	LW r8 r2	ADD r5 r7 r1	*         	*         
+9	ADD r8 r8 r2	SW r7 r8	LW r8 r2	ADD r5 r7 r1	*         
+10	ADD r8 r8 r2	SW r7 r8	*         	LW r8 r2	ADD r5 r7 r1
+11	ADD r8 r8 r2	SW r7 r8	*         	*         	LW r8 r2
+12	LW r9 r8	ADD r8 r8 r2	SW r7 r8	*         	*         
+13	SW r9 r8	LW r9 r8	ADD r8 r8 r2	SW r7 r8	*         
+14	*         	SW r9 r8	LW r9 r8	ADD r8 r8 r2	SW r7 r8
+15	*         	SW r9 r8	*         	LW r9 r8	ADD r8 r8 r2
+16	*         	SW r9 r8	*         	*         	LW r9 r8
+17	*         	*         	SW r9 r8	*         	*         
+18	*         	*         	*         	SW r9 r8	*         
+19	*         	*         	*         	*         	SW r9 r8
+20	*         	*         	*         	*         	*         
+Completed in 19 cycles
+
+================================================================================================
+================================================================================================
+
+wyd@wyd-XPS-8930:~/Documents/stud/cs203/cs203/lab1/Pipesim$ ./pipesim -f 2 instruction2.txt 
+# EXEC/MEM -> EXEC & MEM/WB -> EXEC forwarding enabled...
+Loading application...instruction2.txt
+Read file completed!!
+Printing Application: 
+ADD r1 r2 r3
+SW r1 r2
+LW r7 r2
+ADD r5 r7 r1
+LW r8 r2
+SW r7 r8
+ADD r8 r8 r2
+LW r9 r8
+SW r9 r8
+Initializing pipeline...
+Cycle	IF		ID		EXEC		MEM		WB
+0	*         	*         	*         	*         	*         
+1	ADD r1 r2 r3	*         	*         	*         	*         
+2	SW r1 r2	ADD r1 r2 r3	*         	*         	*         
+3	LW r7 r2	SW r1 r2	ADD r1 r2 r3	*         	*         
+4	ADD r5 r7 r1	LW r7 r2	SW r1 r2	ADD r1 r2 r3	*         
+5	LW r8 r2	ADD r5 r7 r1	LW r7 r2	SW r1 r2	ADD r1 r2 r3
+6	LW r8 r2	ADD r5 r7 r1	*         	LW r7 r2	SW r1 r2
+7	SW r7 r8	LW r8 r2	ADD r5 r7 r1	*         	LW r7 r2
+8	ADD r8 r8 r2	SW r7 r8	LW r8 r2	ADD r5 r7 r1	*         
+9	ADD r8 r8 r2	SW r7 r8	*         	LW r8 r2	ADD r5 r7 r1
+10	LW r9 r8	ADD r8 r8 r2	SW r7 r8	*         	LW r8 r2
+11	SW r9 r8	LW r9 r8	ADD r8 r8 r2	SW r7 r8	*         
+12	*         	SW r9 r8	LW r9 r8	ADD r8 r8 r2	SW r7 r8
+13	*         	SW r9 r8	*         	LW r9 r8	ADD r8 r8 r2
+14	*         	*         	SW r9 r8	*         	LW r9 r8
+15	*         	*         	*         	SW r9 r8	*         
+16	*         	*         	*         	*         	SW r9 r8
+17	*         	*         	*         	*         	*         
+Completed in 16 cycles
+
