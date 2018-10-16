@@ -1,5 +1,6 @@
 # cs203
 
 ### Usage:
-$ make
-$ ./pipesim -f [forwarding window width] [filename]
+'''
+./pipesim -f [forwarding window width] [filename]
+'''
