@@ -17,13 +17,18 @@ int main(int argc, char *argv[]) {
         {
             case 'f': forwarding = true; break;
             case 'i': fileName.assign(optarg); break;
-            case '?': fprintf(stderr, "usuage is \n -i fileName : to run input file fileName \n -f [forwarding window width] [filename]: to enable forwarding (disabled by dfl)");
+            case '?': fprintf(stderr, "usuage is \n -i fileName : to run input file fileName \n -f [forwarding window width (0 - 2)] [filename]: to enable forwarding (disabled by dfl)");
             default: cout<<endl; abort();
         }
 
 	if (argc == 4) {
 		width = atoi(argv[2]);
+		if (width < 0 || width > 2) {
+			fprintf(stderr, "Invalid width value!\n");
+			abort();
+		}
 		fileName = argv[3];
+		cout<<"# Forwarding enabled..."<<endl;
 	}
 	
 	cout << "Loading application..." << fileName << endl;
