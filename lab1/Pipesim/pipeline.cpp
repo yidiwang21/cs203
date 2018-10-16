@@ -187,6 +187,7 @@ bool Pipeline::hasDependency(void) {
 		    (pipeline[i].inst->dest == pipeline[DECODE].inst->src1 ||		// RAW
 		     pipeline[i].inst->dest == pipeline[DECODE].inst->src2) ) {
 			/* FORWARDING CONDITIONS START HERE */
+			// TODO: should distinguish MEM/EXEC -> EXEC and MEM/WB -> EXEC by distinct LW/SW
 			if (width == 0) 
 			{
 				std::cout<<"333333333333"<<std::endl;
