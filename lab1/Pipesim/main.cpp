@@ -23,12 +23,14 @@ int main(int argc, char *argv[]) {
 
 	if (argc == 4) {
 		width = atoi(argv[2]);
-		if (width < 0 || width > 2) {
-			fprintf(stderr, "Invalid width value!\n");
-			abort();
+		switch (width)
+		{
+			case 0: cout<<"# Forwarding disabled..."<<endl; break;
+			case 1: cout<<"# EXEC/MEM -> EXEC forwarding enabled..."<<endl; break; 
+			case 2: cout<<"# EXEC/MEM -> EXEC & MEM/WB -> EXEC forwarding enabled..."<<endl; break;
+			default: fprintf(stderr, "ERROR: Invalid width value!\n"); abort();
 		}
 		fileName = argv[3];
-		cout<<"# Forwarding enabled..."<<endl;
 	}
 	
 	cout << "Loading application..." << fileName << endl;

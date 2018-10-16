@@ -186,24 +186,30 @@ bool Pipeline::hasDependency(void) {
 		if( (pipeline[i].inst->dest != -1) && 
 		    (pipeline[i].inst->dest == pipeline[DECODE].inst->src1 ||		// RAW
 		     pipeline[i].inst->dest == pipeline[DECODE].inst->src2) ) {
-			// std::cout<<"77777777777777"<<std::endl;
+
 			/* FORWARDING CONDITIONS START HERE */
-			if (width == 0)	// forwarding disabled 
+			// forwarding disabled 
+			if (width == 0)	
 				return true;
-
-			else if (width == 1) {	// EXEC/MEM -> EXEC
+			// EXEC/MEM -> EXEC
+			else if (width == 1) {	
 				if (i > MEM) return true;
-				else if (i == MEM && (pipeline[i].inst->type == SW || pipeline[i].inst->type == LW)) return true;
-				else continue;
+				else if (i == MEM && (pipeline[i].inst->type == SW || pipeline[i].inst->type == LW)) 
+					return true;
+				else 
+					continue;
 			}
-
-			else if (width == 2) {	// MEM/EXEC -> EXEC and MEM/WB -> EXEC
-				if (i == MEM && (pipeline[i].inst->type == SW || pipeline[i].inst->type == LW)) return true;
-				else continue;
+			// MEM/EXEC -> EXEC and MEM/WB -> EXEC
+			else if (width == 2) {	
+				if (i == MEM && (pipeline[i].inst->type == SW || pipeline[i].inst->type == LW)) 
+					return true;
+				else 
+					continue;
 			}
 			/* FORWARDING CONDITIONS END HERE */
-
-			else return true;	// never execute if width is valid
+			
+			else 
+				return true;	// never execute if width is valid
 		}
 
 	}
