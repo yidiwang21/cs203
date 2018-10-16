@@ -2,5 +2,6 @@
 
 ### Usage:
 ```
+make
 ./pipesim -f [forwarding window width] [filename]
 ```
