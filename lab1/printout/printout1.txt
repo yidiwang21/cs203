@@ -1,4 +1,4 @@
-wyd@wyd-XPS-8930:~/Documents/stud/cs203/cs203/lab1/Pipesim$ ./pipesim -f 1 instruction.txt 
+wyd@wyd-XPS-8930:~/Documents/stud/cs203/cs203/lab1/Pipesim$ ./pipesim -i instruction.txt -f 1
 # EXEC/MEM -> EXEC forwarding enabled...
 Loading application...instruction.txt
 Read file completed!!
@@ -30,10 +30,10 @@ Cycle	IF		ID		EXEC		MEM		WB
 15	*         	*         	*         	*         	*         
 Completed in 14 cycles
 
-================================================================================================
-================================================================================================
+===============================================================================================
+===============================================================================================
 
-wyd@wyd-XPS-8930:~/Documents/stud/cs203/cs203/lab1/Pipesim$ ./pipesim -f 2 instruction.txt 
+wyd@wyd-XPS-8930:~/Documents/stud/cs203/cs203/lab1/Pipesim$ ./pipesim -i instruction.txt -f 2
 # EXEC/MEM -> EXEC & MEM/WB -> EXEC forwarding enabled...
 Loading application...instruction.txt
 Read file completed!!
