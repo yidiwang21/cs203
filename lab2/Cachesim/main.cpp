@@ -5,23 +5,23 @@
 
 using namespace std;
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     
     int opt;
     int total_cache_size;
     int cache_block_size;
-    int num_of_ways;
+    int ways_num;
+    int victim_block_num;
 
     string filename = "gcc-1M.memtrace";
 
-    while((opt = getopt(argc, argv, "i:c:b:w: ")) != EOF){    
-        switch (opt)
-        {
+    while((opt = getopt(argc, argv, "i:c:b:w:v: ")) != EOF){    
+        switch (opt) {
             case 'i': filename.assign(optarg); break;
             case 'c': total_cache_size = atoi(optarg); break;
             case 'b': cache_block_size = atoi(optarg); break;
-            case 'w': num_of_ways = atoi(optarg); break;
+            case 'w': ways_num = atoi(optarg); break;
+            case 'v': victim_block_num = atoi(optarg); break;
             case '?': fprintf(stderr, "# Usage: \n -i [filename] -cs [Total cache size] -bs [Cache block size] -w [Number of ways] ");
             default: cout<<endl; abort();
         }
@@ -35,8 +35,12 @@ int main(int argc, char *argv[])
         fprintf(stderr, "# Cache block size must be in 2, 4, 8, 16, 32, 64 (B)! \n");
         return -1;
     }
-    if (num_of_ways < 0 || num_of_ways > 16 || (num_of_ways & (num_of_ways - 1)) != 0) {
+    if (ways_num < 0 || ways_num > 16 || (ways_num & (ways_num - 1)) != 0) {
         fprintf(stderr, "# Number of ways must be in 0, 1, 2, 3, 4, 8, 16! \n");
+        return -1;   
+    }
+    if (victim_block_num != 4 || victim_block_num != 8 || victim_block_num != 16) {
+        fprintf(stderr, "# Size of victim cache must be in 4, 8, 16! \n");
         return -1;   
     }
 
