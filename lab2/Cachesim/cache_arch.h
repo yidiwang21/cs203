@@ -28,25 +28,37 @@ private:
     
     int cache_entry = log(total_cache_size / cache_block_size)/log(2) + 10;
 
+    struct CacheLine {
+                bool valid = 1; // 1: valid
+                int tag;
+                int data;
+                long cnt;
+            };
+    struct CacheLine evicted_cacheline;
+
     struct Index {
         int cacheline_num;  
         int entry;
-
-        struct CacheLine {
-            bool valid = 1; // 1: valid
-            int tag;
-            int data;
-            long long cnt;
-        };
-        struct CacheLine* cacheline = (struct CacheLine *)malloc(cachearch.ways_num * sizeof(struct CacheLine));
+        struct CacheLine* cacheline;
     };
 
     struct Index* index = (struct Index *)malloc(cache_index * sizeof(struct Index));
 
+    // FIXME: 
+    void init_struct() {
+        this->index.cacheline = (struct CacheLine *)malloc(ways_num * sizeof(struct CacheLine));
+    }
+    
+    // struct Evicted_CacheLine{
+    //     bool valid = 1; // 1: valid
+    //     int tag;
+    //     int data;
+    //     long cnt;
+    // };
+    
+
     void insertLine(struct FileOpt::FileLine fileline);
     bool isHit(struct FileOpt::FileLine fileline);
-
-
 };
 
 

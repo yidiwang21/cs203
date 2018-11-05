@@ -80,10 +80,12 @@ void CacheArch::insertLine(struct FileOpt::FileLine fileline) {
     int idx = fileopt.computeIndex(fileline.addr);
     int tag = fileopt.computeTag(fileline.addr);
 
-    int min_cnt = 20000;
+    long min_cnt = 66666666;
 
     if (isHit(fileline))
         return;
+
+    // TODO: hit in victim cache?
 
     for (int i = 0; i < ways_num; i++) {
         if (index[idx].cacheline[i].valid == 1) {   // can be inserted 
@@ -97,9 +99,11 @@ void CacheArch::insertLine(struct FileOpt::FileLine fileline) {
     }
     for (int i = 0; i < ways_num; i++) {
         if (index[idx].cacheline[i].cnt == min_cnt) {   // do replacement, LRU
+            // first assign to evicted cache line
+            evicted_cacheline = index[idx].cacheline[i];
+            // do replacement
             index[idx].cacheline[i].tag = tag;
             index[idx].cacheline[i].cnt = 1;
         }
     }
-    
 }
