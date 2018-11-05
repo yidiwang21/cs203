@@ -1,9 +1,8 @@
 #include "cache_arch.h"
 
-CacheArch::CacheArch() {}
-FileOpt::FileOpt(){}
+CacheClass::CacheClass() {}
 
-string FileOpt::convertAddr(string str) {
+string CacheClass::convertAddr(string str) {
     string ret_addr;
     for (int i = 0; i < str.length(); i++) {
         switch(toupper(str[i])) {
@@ -28,42 +27,42 @@ string FileOpt::convertAddr(string str) {
     return ret_addr;
 }
 
-int FileOpt::computeIndex(string addr) {
+int CacheClass::computeIndex(string addr) {
     string str;
-    str.assign(addr, cachearch.cache_tag, cachearch.cache_index);
+    str.assign(addr, cache_tag, cache_index);
     int ret = 0;
     char c;
-    for (int i = 0; i < cachearch.cache_index; i++) {
+    for (int i = 0; i < cache_index; i++) {
         ret += 2 ^ atoi(&str[i]);
     }
     return ret;
 }
 
-int FileOpt::computeTag(string addr) {
+int CacheClass::computeTag(string addr) {
     string str;
-    str.assign(addr, 0, cachearch.cache_tag);
+    str.assign(addr, 0, cache_tag);
     int ret = 0;
     char c;
-    for (int i = 0; i < cachearch.cache_index; i++) {
+    for (int i = 0; i < cache_index; i++) {
         ret += 2 ^ atoi(&str[i]);
     }
     return ret;
 }
 
-int FileOpt::computeOffset(string addr) {
+int CacheClass::computeOffset(string addr) {
     string str;
-    str.assign(addr, cachearch.cache_tag + cachearch.cache_index, cachearch.cache_offset);
+    str.assign(addr, cache_tag + cache_index, cache_offset);
     int ret = 0;
     char c;
-    for (int i = 0; i < cachearch.cache_index; i++) {
+    for (int i = 0; i < cache_index; i++) {
         ret += 2 ^ atoi(&str[i]);
     }
     return ret;
 }
 
-bool CacheArch::isHit(struct FileOpt::FileLine fileline) {
-    int idx = fileopt.computeIndex(fileline.addr);
-    int tag = fileopt.computeTag(fileline.addr);
+bool CacheClass::isHit(struct FileLine fileline) {
+    int idx = computeIndex(fileline.addr);
+    long tag = computeTag(fileline.addr);
 
     for (int i = 0; i < ways_num; i++) {
         if (!index[idx].cacheline[i].valid && index[idx].cacheline[i].tag == tag) {
@@ -75,20 +74,27 @@ bool CacheArch::isHit(struct FileOpt::FileLine fileline) {
     return 0;
 }
 
-
-void CacheArch::insertLine(struct FileOpt::FileLine fileline) {
-    int idx = fileopt.computeIndex(fileline.addr);
-    int tag = fileopt.computeTag(fileline.addr);
+void CacheClass::insertLine(struct FileLine fileline) {
+    int idx = computeIndex(fileline.addr);
+    long tag = computeTag(fileline.addr);
 
     long min_cnt = 66666666;
 
-    if (isHit(fileline))
-        return;
+    if (isHit(fileline)) return;
+    // already miss in cache
 
     // TODO: hit in victim cache?
+    long dest_tag = (tag << idx) | idx;     // tag that we need to find in victim cache
+    for (int i = 0; i < victim_block_num; i++) {
+        if (victimline[i].tag == dest_tag) {// hit in victim cache
+            
+        }
+    }
+
+
 
     for (int i = 0; i < ways_num; i++) {
-        if (index[idx].cacheline[i].valid == 1) {   // can be inserted 
+        if (index[idx].cacheline[i].valid == 1) {   // empty space, can be inserted 
             index[idx].cacheline[i].tag = tag;
             index[idx].cacheline[i].valid = 0;
             miss_num += 1;
@@ -97,6 +103,7 @@ void CacheArch::insertLine(struct FileOpt::FileLine fileline) {
         }
         min_cnt = min(min_cnt, index[idx].cacheline[i].cnt);
     }
+
     for (int i = 0; i < ways_num; i++) {
         if (index[idx].cacheline[i].cnt == min_cnt) {   // do replacement, LRU
             // first assign to evicted cache line
@@ -106,4 +113,5 @@ void CacheArch::insertLine(struct FileOpt::FileLine fileline) {
             index[idx].cacheline[i].cnt = 1;
         }
     }
+    
 }

@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include "unistd.h"
 
+#include "cache_arch.h"
+
 using namespace std;
 
 int main(int argc, char *argv[]) {
