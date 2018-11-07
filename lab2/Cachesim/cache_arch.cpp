@@ -2,6 +2,11 @@
 
 CacheClass::CacheClass() {}
 
+struct FileLine CacheClass::readLine(string filename) {
+
+}
+
+
 string CacheClass::convertAddr(string str) {
     string ret_addr;
     for (int i = 0; i < str.length(); i++) {
@@ -60,58 +65,66 @@ int CacheClass::computeOffset(string addr) {
     return ret;
 }
 
-bool CacheClass::isHit(struct FileLine fileline) {
+// return val: 
+// 0: miss in both cache and victim cache
+// 1: hit in cache
+// 2: miss in cache, hit in victim cache
+int CacheClass::isHit(struct FileLine fileline) {
     int idx = computeIndex(fileline.addr);
     long tag = computeTag(fileline.addr);
+    long dest_tag = (tag << idx) | idx;     // tag that we need to find in victim cache
 
+    // hit in cache
     for (int i = 0; i < ways_num; i++) {
         if (!index[idx].cacheline[i].valid && index[idx].cacheline[i].tag == tag) {
-            hit_num += 1;
             index[idx].cacheline[i].cnt += 1;
             return 1;
         }
     }
+    // hit in victim cache
+    for (int i = 0; i < victim_block_num; i++) {
+        if (victimline[i].tag == dest_tag) {
+            // hit_num += 1;
+            victimline[i].cnt += 1;
+            return 2;
+        }
+    }
+    // miss in both cache and victim cache
+    miss_num += 1;
     return 0;
 }
 
 void CacheClass::insertLine(struct FileLine fileline) {
     int idx = computeIndex(fileline.addr);
     long tag = computeTag(fileline.addr);
-
-    long min_cnt = 66666666;
-
-    if (isHit(fileline)) return;
-    // already miss in cache
-
-    // TODO: hit in victim cache?
     long dest_tag = (tag << idx) | idx;     // tag that we need to find in victim cache
-    for (int i = 0; i < victim_block_num; i++) {
-        if (victimline[i].tag == dest_tag) {// hit in victim cache
-            
+    long min_cnt = LONG_MAX;
+
+    if (isHit(fileline) == 1) { // do nothing
+        return;
+    }
+    if (isHit(fileline) == 2) { // do replacement, LRU
+        for (int i = 0; i < ways_num; i++) {
+            min_cnt = min(min_cnt, index[idx].cacheline[i].cnt);
+        }
+        for (int i = 0; i < ways_num; i++) {
+            if (index[idx].cacheline[i].cnt == min_cnt) {
+                // first assign to evicted cache line
+                evicted_cacheline = index[idx].cacheline[i];
+                // do replacement
+                index[idx].cacheline[i].tag = tag;
+                index[idx].cacheline[i].cnt = 1;
+            }
+        }   
+    }
+    if (isHit(fileline) == 0) {                         // insert a new line
+        for (int i = 0; i < ways_num; i++) {
+            if (index[idx].cacheline[i].valid == 1) {
+                index[idx].cacheline[i].tag = tag;
+                index[idx].cacheline[i].valid = 0;
+                index[idx].cacheline[i].cnt += 1;
+                return;
+            }   
         }
     }
-
-
-
-    for (int i = 0; i < ways_num; i++) {
-        if (index[idx].cacheline[i].valid == 1) {   // empty space, can be inserted 
-            index[idx].cacheline[i].tag = tag;
-            index[idx].cacheline[i].valid = 0;
-            miss_num += 1;
-            index[idx].cacheline[i].cnt += 1;
-            return;
-        }
-        min_cnt = min(min_cnt, index[idx].cacheline[i].cnt);
-    }
-
-    for (int i = 0; i < ways_num; i++) {
-        if (index[idx].cacheline[i].cnt == min_cnt) {   // do replacement, LRU
-            // first assign to evicted cache line
-            evicted_cacheline = index[idx].cacheline[i];
-            // do replacement
-            index[idx].cacheline[i].tag = tag;
-            index[idx].cacheline[i].cnt = 1;
-        }
-    }
-    
 }

@@ -6,8 +6,12 @@
 #include <math.h>
 #include <vector>
 #include <string>
+#include <fstream>
 
 using namespace std;
+
+#define INT_MAX     65535
+#define LONG_MAX    4294967295
 
 class CacheClass
 {
@@ -47,7 +51,7 @@ private:
     struct Index* index = (struct Index *)malloc(cache_index * sizeof(struct Index));
 
     void insertLine(struct FileLine fileline);
-    bool isHit(struct FileLine fileline);
+    int isHit(struct FileLine fileline);
 
     string convertAddr(string str);
     struct FileLine readLine(string filename);  
