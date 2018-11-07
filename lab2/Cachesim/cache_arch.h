@@ -6,7 +6,6 @@
 #include <math.h>
 #include <vector>
 #include <string>
-#include <fstream>
 
 using namespace std;
 
@@ -54,14 +53,14 @@ private:
     int isHit(struct FileLine fileline);
 
     string convertAddr(string str);
-    struct FileLine readLine(string filename);  
+    vector<struct FileLine> readFile(string filename);  
     int computeIndex(string addr);
     int computeTag(string addr);
     int computeOffset(string addr);
 };
 
 struct FileLine {
-    char inst;
+    char opcode;
     int offset;
     string addr;
 };

@@ -1,9 +1,27 @@
 #include "cache_arch.h"
+#include <fstream>
 
 CacheClass::CacheClass() {}
 
-struct FileLine CacheClass::readLine(string filename) {
+vector<struct FileLine> CacheClass::readFile(string filename) {
+    vector<struct FileLine> filelines;
+    filelines.push_back(FileLine());
 
+    ifstream infile(filename);
+    string line;
+    char inst_opcode;
+    int inst_offset;
+    string inst_addr;
+    int l = 0;
+    while (getline(infile, line)) {
+        istringstream iss(line);
+        if (!(iss >> inst_opcode >> inst_offset >> inst_addr)) break;
+        filelines[l].addr = inst_addr;
+        filelines[l].opcode = inst_opcode;
+        filelines[l].offset = inst_offset;
+        l++;
+    }
+    return 
 }
 
 

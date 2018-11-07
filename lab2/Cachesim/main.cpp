@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
         return -1;
     }
     if (ways_num < 0 || ways_num > 16 || (ways_num & (ways_num - 1)) != 0) {
-        fprintf(stderr, "# Number of ways must be in 0, 1, 2, 3, 4, 8, 16! \n");
+        fprintf(stderr, "# Number of ways must be in 0, 1, 2, 4, 8, 16! \n");
         return -1;   
     }
     if (victim_block_num != 4 || victim_block_num != 8 || victim_block_num != 16) {
