@@ -6,31 +6,38 @@
 #include <math.h>
 #include <vector>
 #include <string>
+#include <fstream>
+#include <sstream>
+#include <iostream>
 
 using namespace std;
 
 #define INT_MAX     65535
 #define LONG_MAX    4294967295
+#define ADDR_BITS   32
 
-class CacheClass
-{
+class CacheClass {
 public:
-    CacheClass();
+    CacheClass(int t, int c, int w, int v, string fn);
     int total_cache_size;
     int cache_block_size;
     int ways_num;
     int victim_block_num;
+    bool victim_cache_enabled;
+    string filename;
 
-    int hit_num = 0;
-    int miss_num = 0;
+    // long hit_num = 0;
+    long miss_num;
 
-    int cache_offset = log(cache_block_size)/log(2);
-    int cache_index = log(total_cache_size / cache_block_size)/log(2) + 10 - log(ways_num)/log(2);
-    int cache_tag = 32 - cache_index - cache_offset;
+    int cache_offset;
+    int cache_index;
+    int cache_tag;
+
+    void Applications();
     
 private:
-    
-    int cache_entry = log(total_cache_size / cache_block_size)/log(2) + 10;
+    int cache_entry;
+    long l = 0;          // line cnt in a file
 
     struct CacheLine {
         bool valid = 1; // 1: valid
@@ -39,15 +46,15 @@ private:
         long cnt;
     };
     struct CacheLine evicted_cacheline;
-    struct CacheLine* victimline = (struct CacheLine*)malloc(victim_block_num * sizeof(struct CacheLine));
+    vector<struct CacheLine> victimline;
 
     struct Index {
         int cacheline_num;  
         int entry;
-        struct CacheLine* cacheline;
+        vector<struct CacheLine> cacheline;
     };
-
-    struct Index* index = (struct Index *)malloc(cache_index * sizeof(struct Index));
+    vector<struct Index> index;
+    // struct Index* index = (struct Index *)malloc(cache_index * sizeof(struct Index));
 
     void insertLine(struct FileLine fileline);
     int isHit(struct FileLine fileline);
@@ -57,6 +64,7 @@ private:
     int computeIndex(string addr);
     int computeTag(string addr);
     int computeOffset(string addr);
+    float computeMissRate(long l, long miss_num);
 };
 
 struct FileLine {
@@ -64,7 +72,5 @@ struct FileLine {
     int offset;
     string addr;
 };
-
-extern CacheClass CacheArch;
 
 #endif

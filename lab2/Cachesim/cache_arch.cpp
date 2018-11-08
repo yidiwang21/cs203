@@ -1,29 +1,54 @@
 #include "cache_arch.h"
-#include <fstream>
 
-CacheClass::CacheClass() {}
+CacheClass::CacheClass(int t, int c, int w, int v, string fn) {
+    total_cache_size = t;
+    cache_block_size = c;
+    ways_num = w;
+    victim_block_num = v;
+    filename = fn;
+
+    cache_offset = log(cache_block_size)/log(2);
+    cache_index = log(total_cache_size / cache_block_size)/log(2) + 10 - log(ways_num)/log(2);
+    cache_tag = ADDR_BITS - cache_index - cache_offset;
+    cache_entry = log(total_cache_size / cache_block_size)/log(2) + 10;
+
+    miss_num = 0;
+
+    victimline.push_back(CacheLine());
+    index.push_back(Index());
+}
 
 vector<struct FileLine> CacheClass::readFile(string filename) {
     vector<struct FileLine> filelines;
     filelines.push_back(FileLine());
 
-    ifstream infile(filename);
-    string line;
+    struct FileLine temp_line;
+
+    ifstream infile;
+    infile.open(filename.c_str(), std::ifstream::in);
+
+    string sline = "";
     char inst_opcode;
     int inst_offset;
     string inst_addr;
-    int l = 0;
-    while (getline(infile, line)) {
-        istringstream iss(line);
+    while (!infile.eof()) {
+        getline(infile, sline);
+        istringstream iss(sline);
         if (!(iss >> inst_opcode >> inst_offset >> inst_addr)) break;
-        filelines[l].addr = inst_addr;
-        filelines[l].opcode = inst_opcode;
-        filelines[l].offset = inst_offset;
+#ifdef DEBUG
+        cout << "opcode: " << inst_opcode << endl;
+        cout << "offset: " << inst_offset << endl;
+        cout << "addr: " << inst_addr << endl;
+#endif
+        temp_line.addr = inst_addr;
+        temp_line.opcode = inst_opcode;
+        temp_line.offset = inst_offset;
+        filelines.push_back(temp_line);
         l++;
     }
-    return 
+    infile.close();
+    return filelines;
 }
-
 
 string CacheClass::convertAddr(string str) {
     string ret_addr;
@@ -100,7 +125,7 @@ int CacheClass::isHit(struct FileLine fileline) {
         }
     }
     // hit in victim cache
-    for (int i = 0; i < victim_block_num; i++) {
+    for (int i = 0; i < victim_block_num && i < victimline.size(); i++) {
         if (victimline[i].tag == dest_tag) {
             // hit_num += 1;
             victimline[i].cnt += 1;
@@ -117,14 +142,20 @@ void CacheClass::insertLine(struct FileLine fileline) {
     long tag = computeTag(fileline.addr);
     long dest_tag = (tag << idx) | idx;     // tag that we need to find in victim cache
     long min_cnt = LONG_MAX;
+    long min_victim_cnt = LONG_MAX;
+    int min_victim_line = 0;
+    int min_line = 0;
 
-    if (isHit(fileline) == 1) { // do nothing
+    cout << "44444444444444" << endl;
+
+    if (isHit(fileline) == 1) { // hit in cache. do nothing
         return;
     }
-    if (isHit(fileline) == 2) { // do replacement, LRU
+    if (isHit(fileline) == 2) { // miss in cache, hit in victim cache, do replacement, LRU
         for (int i = 0; i < ways_num; i++) {
             min_cnt = min(min_cnt, index[idx].cacheline[i].cnt);
         }
+        cout << "55555555555555" << endl;
         for (int i = 0; i < ways_num; i++) {
             if (index[idx].cacheline[i].cnt == min_cnt) {
                 // first assign to evicted cache line
@@ -132,17 +163,62 @@ void CacheClass::insertLine(struct FileLine fileline) {
                 // do replacement
                 index[idx].cacheline[i].tag = tag;
                 index[idx].cacheline[i].cnt = 1;
+                // insert evicted line into victim cache
+                // if empty lines in victim cache, push directly
+                // if not, find the min cnt in victim cache and replace
+                cout << "66666666666666" << endl; 
+                if (victimline.size() < victim_block_num) {
+                    victimline.push_back(evicted_cacheline);
+                }else {
+                    for (int j = 0; j < victim_block_num; j++) {
+                        if (min_victim_cnt > victimline[j].cnt) {   // if update, fresh min victim line index
+                            min_victim_cnt = victimline[j].cnt;
+                            min_victim_line = j;
+                        }
+                    }
+                    victimline[min_victim_line] = evicted_cacheline;
+                }
             }
         }   
     }
-    if (isHit(fileline) == 0) {                         // insert a new line
+    cout << "777777777777777777" << endl;
+    if (isHit(fileline) == 0) {                         // miss in both cache and victim cache, insert a new line
         for (int i = 0; i < ways_num; i++) {
             if (index[idx].cacheline[i].valid == 1) {
                 index[idx].cacheline[i].tag = tag;
                 index[idx].cacheline[i].valid = 0;
                 index[idx].cacheline[i].cnt += 1;
                 return;
-            }   
+            }
         }
+        // no valid place for this addr, replace
+        for (int i = 1; i < ways_num; i++) {
+            if (min_cnt > index[idx].cacheline[i].cnt) {
+                min_cnt = index[idx].cacheline[i].cnt;
+                min_line = i;
+            }
+        }
+        // TODO: evict
     }
+}
+
+float CacheClass::computeMissRate(long l, long miss_num) {
+    return miss_num / l;
+}
+
+void CacheClass::Applications() {
+    cout << "Reading trace file..." << filename << endl;
+    vector<struct FileLine> filelines = readFile(filename);
+    cout << "Total lines in the file: " << l << endl;
+    int v = 0;
+
+    while (v < filelines.size()) {
+        filelines[v].addr = convertAddr(filelines[v].addr);
+        cout << "222222222222222" << endl;
+        insertLine(filelines[v]);
+        cout << "333333333333333" << endl;
+        v++;
+    }
+    float miss_rate = computeMissRate(l, miss_num);
+    cout << "Miss rate of file [" << filename << "] is: " << miss_rate << endl;
 }
