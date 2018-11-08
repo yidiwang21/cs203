@@ -39,6 +39,7 @@ public:
     
 private:
     int cache_entry;
+    long fully_assoc_entry;
     long l = 0;          // line cnt in a file
 
     struct CacheLine {
@@ -59,6 +60,7 @@ private:
     // vector<struct Index> index;
     // struct Index* index = (struct Index *)malloc(cache_index * sizeof(struct Index));
     struct Index* index;
+    vector<struct Index> fully_assoc_lines;
 
     void initArch(void);
     void insertLine(struct FileLine fileline);

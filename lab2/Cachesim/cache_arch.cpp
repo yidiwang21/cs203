@@ -8,15 +8,18 @@ CacheClass::CacheClass(int t, int c, int w, int v, string fn) {
     filename = fn;
 
     cache_offset = log(cache_block_size)/log(2);
-    cache_index = log(total_cache_size / cache_block_size)/log(2) + 10 - log(ways_num)/log(2);
+    cache_index = (ways_num == 0) ? 0 : (log(total_cache_size / cache_block_size)/log(2) + 10 - log(ways_num)/log(2));  // consider fully assoc cache
     cache_tag = ADDR_BITS - cache_index - cache_offset;
     cache_entry = log(total_cache_size / cache_block_size)/log(2) + 10;
+
+    fully_assoc_entry = (ways_num == 0) ? pow(2, cache_entry) : 0;
 
     cout << "=======================================================" << endl;
     cout << "# Cache Design: " << endl;
     cout << "# Cache index: " << cache_index << endl;
     cout << "# Cache offset: " << cache_offset << endl;
     cout << "# Cache tag: " << cache_tag << endl;
+    cout << "# Cache entry: " << cache_entry << endl;
     cout << "=======================================================" << endl;
 
     miss_num = 0;
@@ -25,16 +28,32 @@ CacheClass::CacheClass(int t, int c, int w, int v, string fn) {
 }
 
 void CacheClass::initArch() {
-    long temp_index = pow(2, cache_index);
-    index = (struct Index *)malloc(temp_index * sizeof(struct Index));
-    cout << "# Allocating spaces for cache..." << endl;
-    for (int i = 0; i < temp_index; i++) {
-        index[i].cacheline = (struct CacheLine *)malloc(ways_num * sizeof(struct CacheLine));
-        for (int j = 0; j < ways_num; j++) {
-            index[i].cacheline[j].cnt = 0;
-            index[i].cacheline[j].valid = true;
-            index[i].cacheline[j].tag = 0;
+    if (ways_num != 0) {
+        long temp_index = pow(2, cache_index);
+        index = (struct Index *)malloc(temp_index * sizeof(struct Index));
+        cout << "# Allocating spaces for cache..." << endl;  
+        for (int i = 0; i < temp_index; i++) {
+            index[i].cacheline = (struct CacheLine *)malloc(ways_num * sizeof(struct CacheLine));
+            for (int j = 0; j < ways_num; j++) {
+                index[i].cacheline[j].cnt = 0;
+                index[i].cacheline[j].valid = true;
+                index[i].cacheline[j].tag = 0;
+            }
         }
+    }else { // fully assoc cache, ways_num = 0
+        struct Index tmp;
+        tmp.cacheline = (struct CacheLine *)malloc(sizeof(struct CacheLine));
+        tmp.cacheline->cnt = 0;
+        tmp.cacheline->valid = true;
+        tmp.cacheline->tag = 0;
+        // fully_assoc_lines.push_back(Index());
+        for (int i = 0; i < fully_assoc_entry; i++) {
+            fully_assoc_lines.push_back(tmp);
+#ifdef DEBUG
+            cout << "fully_assoc_lines [" << i << "].cacheline->valid: " << fully_assoc_lines[i].cacheline->valid << endl;
+#endif // DEBUG
+        }
+        cout << "size of fully_assoc_lines: " << fully_assoc_lines.size() << endl;
     }
 }
 
@@ -118,7 +137,7 @@ long CacheClass::computeTag(string addr) {
     string str;
     str.assign(addr, 0, cache_tag);
     long ret = 0;
-    for (int i = 0; i < cache_index; i++) {
+    for (int i = 0; i < cache_tag; i++) {
         if (str[str.length() - i] == '1') {
             ret += pow(2, i);
         }
@@ -130,7 +149,7 @@ long CacheClass::computeOffset(string addr) {
     string str;
     str.assign(addr, cache_tag + cache_index, cache_offset);
     long ret = 0;
-    for (int i = 0; i < cache_index; i++) {
+    for (int i = 0; i < cache_offset; i++) {
         if (str[str.length() - i] == '1') {
             ret += pow(2, i);
         }
@@ -154,119 +173,218 @@ long CacheClass::computeAddr(string addr) {
 // 2: miss in cache, hit in victim cache
 int CacheClass::isHit(struct FileLine fileline) {
     int idx = computeIndex(fileline.addr);
-#ifdef DEBUG
-    cout << "computed idx: " << idx << endl;
-#endif // DEBUG
     long tag = computeTag(fileline.addr);
     // FIXME: 
     long dest_tag = computeAddr(fileline.addr);
     // long dest_tag = (tag << idx) | idx;     // tag that we need to find in victim cache
     
-
-    // hit in cache
-    for (int i = 0; i < ways_num; i++) {
-#ifdef DEBUG
-        cout << "valid: " << index[idx].cacheline[i].valid << endl;
-        cout << "tag: " << index[idx].cacheline[i].tag << endl;
-#endif // DEBUG
-        if (index[idx].cacheline[i].valid == false && index[idx].cacheline[i].tag == tag) {
-            index[idx].cacheline[i].cnt += 1;
-            return 1;
+    if (ways_num != 0) {
+        // hit in cache
+        for (int i = 0; i < ways_num; i++) {
+            if (index[idx].cacheline[i].valid == false && index[idx].cacheline[i].tag == tag) {
+                index[idx].cacheline[i].cnt += 1;
+                return 1;
+            }
         }
-    }
-    // hit in victim cache
-    for (int i = 0; i < victim_block_num && i < victimline.size(); i++) {
-        if (victimline[i].tag == dest_tag) {
-            cout << "Victim cache useful!" << endl;
-            // hit_num += 1;
-            victimline[i].cnt += 1;
-            return 2;
+        // hit in victim cache
+        for (int i = 0; i < victim_block_num && i < victimline.size(); i++) {
+            if (victimline[i].tag == dest_tag) {
+                cout << "Victim cache useful!" << endl;
+                // hit_num += 1;
+                victimline[i].cnt += 1;
+                return 2;
+            }
         }
+        // miss in both cache and victim cache
+        return 0;
+    }else {
+        // hit in cache
+        for (int i = 0; i < fully_assoc_entry; i++) {
+            if (fully_assoc_lines[i].cacheline->valid == false && fully_assoc_lines[i].cacheline->tag == tag) {
+                cout << "fully_assoc_lines[i].cacheline->valid: " << fully_assoc_lines[i].cacheline->valid << endl;
+                cout << "Hit!!!" << endl;
+                fully_assoc_lines[i].cacheline->cnt += 1;
+                return 1;
+            }
+        }
+        // hit in victim cache
+        for (int i = 0; i < victim_block_num && i < victimline.size(); i++) {
+            if (victimline[i].tag == dest_tag) {
+                cout << "Victim cache useful!" << endl;
+                victimline[i].cnt += 1;
+                return 2;
+            }
+        }
+        return 0;
     }
-    // miss in both cache and victim cache
-    return 0;
 }
 
 void CacheClass::insertLine(struct FileLine fileline) {
     int idx = computeIndex(fileline.addr);
     long tag = computeTag(fileline.addr);
+    cout << "computed tag = " << tag << endl;
     long dest_tag = (tag << idx) | idx;     // tag that we need to find in victim cache
     long min_cnt = LONG_MAX;
     long min_victim_cnt = LONG_MAX;
     int min_victim_line = 0;
     int min_line = 0;
 
-    if (isHit(fileline) == 1) { // hit in cache. do nothing
-        return;
-    }
-    // FIXME: this never happens!
-    if (isHit(fileline) == 2) { // miss in cache, hit in victim cache, do replacement, LRU
-        for (int i = 0; i < ways_num; i++) {
-            min_cnt = min(min_cnt, index[idx].cacheline[i].cnt);
+    if (ways_num != 0) {
+        if (isHit(fileline) == 1) { // hit in cache. do nothing
+            return;
         }
-        for (int i = 0; i < ways_num; i++) {
-            if (index[idx].cacheline[i].cnt == min_cnt) {
+        // FIXME: this never happens!
+        // TODO: add break
+        if (isHit(fileline) == 2) { // miss in cache, hit in victim cache, do replacement, LRU
+            for (int i = 0; i < ways_num; i++) {
+                min_cnt = min(min_cnt, index[idx].cacheline[i].cnt);
+            }
+            for (int i = 0; i < ways_num; i++) {
+                if (index[idx].cacheline[i].cnt == min_cnt) {
+                    // first assign to evicted cache line
+                    evicted_cacheline = index[idx].cacheline[i];
+                    // do replacement
+                    index[idx].cacheline[i].tag = tag;
+                    index[idx].cacheline[i].cnt = 1;
+                    index[idx].cacheline[i].valid = false;
+                    // insert evicted line into victim cache
+                    // if victim cache available, push directly
+                    // if not, find the min cnt in victim cache and replace
+                    if (victimline.size() < victim_block_num) {
+                        victimline.push_back(evicted_cacheline);
+                    }else {
+                        for (int j = 0; j < victim_block_num; j++) {
+                            if (min_victim_cnt > victimline[j].cnt) {   // if update, fresh min victim line index
+                                min_victim_cnt = victimline[j].cnt;
+                                min_victim_line = j;
+                            }
+                        }
+                        victimline[min_victim_line] = evicted_cacheline;
+                        return;
+                    }
+                }
+            }   
+        }
+        if (isHit(fileline) == 0) { // miss in both cache and victim cache, insert a new line
+            miss_num += 1;
+            for (int i = 0; i < ways_num; i++) {
+                if (index[idx].cacheline[i].valid == 1) {
+                    index[idx].cacheline[i].tag = tag;
+                    index[idx].cacheline[i].valid = false;
+                    index[idx].cacheline[i].cnt = 1;
+                    return;
+                }
+            }
+            // FIXME: this never happens!
+            // no valid place for this addr, replace
+            // FIXME: cnt check
+            for (int i = 1; i < ways_num; i++) {
+                if (min_cnt > index[idx].cacheline[i].cnt) {
+                    min_cnt = index[idx].cacheline[i].cnt;
+                    min_line = i;
+                }
+            }
+            for (int i = 1; i < ways_num; i++) {
                 // first assign to evicted cache line
                 evicted_cacheline = index[idx].cacheline[i];
                 // do replacement
                 index[idx].cacheline[i].tag = tag;
                 index[idx].cacheline[i].cnt = 1;
                 index[idx].cacheline[i].valid = false;
-                // insert evicted line into victim cache
-                // if empty lines in victim cache, push directly
-                // if not, find the min cnt in victim cache and replace
-                if (victimline.size() < victim_block_num) {
-                    victimline.push_back(evicted_cacheline);
-                }else {
-                    for (int j = 0; j < victim_block_num; j++) {
-                        if (min_victim_cnt > victimline[j].cnt) {   // if update, fresh min victim line index
+            }
+            if (victimline.size() < victim_block_num) {
+                victimline.push_back(evicted_cacheline);
+            }else {
+                for (int j = 0; j < victim_block_num; j++) {
+                    if (min_victim_cnt > victimline[j].cnt) {   // if update, fresh min victim line index
                             min_victim_cnt = victimline[j].cnt;
                             min_victim_line = j;
-                        }
                     }
-                    victimline[min_victim_line] = evicted_cacheline;
-                    return;
                 }
-            }
-        }   
-    }
-    if (isHit(fileline) == 0) {                         // miss in both cache and victim cache, insert a new line
-        miss_num += 1;
-        for (int i = 0; i < ways_num; i++) {
-            if (index[idx].cacheline[i].valid == 1) {
-                index[idx].cacheline[i].tag = tag;
-                index[idx].cacheline[i].valid = false;
-                index[idx].cacheline[i].cnt += 1;
+                victimline[min_victim_line] = evicted_cacheline;
                 return;
             }
         }
-        // FIXME: this never happens!
-        // no valid place for this addr, replace
-        for (int i = 1; i < ways_num; i++) {
-            if (min_cnt > index[idx].cacheline[i].cnt) {
-                min_cnt = index[idx].cacheline[i].cnt;
-                min_line = i;
-            }
+    }else { // fully assoc cache, ways_num = 0
+        if (isHit(fileline) == 1) { // hit in cache. do nothing
+            cout << "11111111111111111" << endl;
+            return;
         }
-        for (int i = 1; i < ways_num; i++) {
-            // first assign to evicted cache line
-            evicted_cacheline = index[idx].cacheline[i];
-            // do replacement
-            index[idx].cacheline[i].tag = tag;
-            index[idx].cacheline[i].cnt = 1;
-            index[idx].cacheline[i].valid = false;
-        }
-        if (victimline.size() < victim_block_num) {
-            victimline.push_back(evicted_cacheline);
-        }else {
-            for (int j = 0; j < victim_block_num; j++) {
-                if (min_victim_cnt > victimline[j].cnt) {   // if update, fresh min victim line index
-                        min_victim_cnt = victimline[j].cnt;
-                        min_victim_line = j;
+        if (isHit(fileline) == 2) { // miss in cache, hit in victim cache
+            for (int i = 0; i < fully_assoc_entry; i++) { // find an valid line, and insert
+                if (fully_assoc_lines[i].cacheline->valid == true) {
+                    fully_assoc_lines[i].cacheline->valid = false;
+                    fully_assoc_lines[i].cacheline->cnt = 1;
+                    fully_assoc_lines[i].cacheline->tag = tag;
+                    return;
                 }
             }
-            victimline[min_victim_line] = evicted_cacheline;
-            return;
+            // cache full, do replacement
+            // find the min cnt line in cache, LRU
+            for (int i = 0; i < fully_assoc_entry; i++) {
+                if (min_cnt > fully_assoc_lines[i].cacheline->cnt) {
+                    min_cnt = fully_assoc_lines[i].cacheline->cnt;
+                    min_line = i;
+                }
+            }
+            evicted_cacheline = *(fully_assoc_lines[min_line].cacheline);
+            // replace
+            fully_assoc_lines[min_line].cacheline->cnt = 1;
+            fully_assoc_lines[min_line].cacheline->tag = tag;
+            fully_assoc_lines[min_line].cacheline->valid = false;
+            // insert the evicted line into victim cache
+            if (victimline.size() < victim_block_num) {
+                victimline.push_back(evicted_cacheline);
+                return;
+            }else { // replace in victim cache at line min_victim_line
+                for (int j = 0; j < victim_block_num; j++) {
+                    if (min_victim_cnt > victimline[j].cnt) {
+                        min_victim_cnt = victimline[j].cnt;
+                        min_victim_line = j;
+                    }
+                }
+                victimline[min_victim_line] = evicted_cacheline;
+                return;
+            }
+        }
+        if (isHit(fileline) == 0) { // miss in both cache and victim cache
+            miss_num += 1;
+            // find the first available line and insert
+            for (int i = 0; i < fully_assoc_entry; i++) {
+                if (fully_assoc_lines[i].cacheline->valid == true) {
+                    fully_assoc_lines[i].cacheline->valid = false;
+                    fully_assoc_lines[i].cacheline->cnt = 1;
+                    fully_assoc_lines[i].cacheline->tag = tag;
+                    cout << "insert tag = " << fully_assoc_lines[i].cacheline->tag << endl;
+                    cout << "insert valid = " << fully_assoc_lines[i].cacheline->valid << endl;
+                    return;
+                }
+            }
+            // if no available place in cache, LRU
+            for (int i = 1; i < fully_assoc_entry; i++) {
+                if (min_cnt > fully_assoc_lines[i].cacheline->cnt) {
+                    min_cnt = fully_assoc_lines[i].cacheline->cnt;
+                    min_line = i;
+                }
+            }
+            evicted_cacheline = *(fully_assoc_lines[min_line].cacheline);
+            fully_assoc_lines[min_line].cacheline->cnt = 1;
+            fully_assoc_lines[min_line].cacheline->tag = tag;
+            fully_assoc_lines[min_line].cacheline->valid = false;
+            if (victimline.size() < victim_block_num) {
+                victimline.push_back(evicted_cacheline);
+                return;
+            }else {
+                for (int j = 0; j < victim_block_num; j++) {
+                    if (min_victim_cnt > victimline[j].cnt) {
+                        min_victim_cnt = victimline[j].cnt;
+                        min_victim_line = j;
+                    }
+                }
+                victimline[min_victim_line] = evicted_cacheline;
+                return;
+            }
+            
         }
     }
 }
@@ -283,9 +401,6 @@ void CacheClass::Applications() {
     int v = 1;
 
     while (v < filelines.size()) {
-#ifdef DEBUG
-        cout << "filelines[" << v << "].addr: " << filelines[v].addr << endl;
-#endif
         filelines[v].addr = convertAddr(filelines[v].addr);
 #ifdef DEBUG
         cout << "filelines[" << v << "].addr: " << filelines[v].addr << endl;
