@@ -12,6 +12,8 @@
 
 using namespace std;
 
+// #define DEBUG
+
 #define INT_MAX     65535
 #define LONG_MAX    4294967295
 #define ADDR_BITS   32
@@ -40,7 +42,7 @@ private:
     long l = 0;          // line cnt in a file
 
     struct CacheLine {
-        bool valid = 1; // 1: valid
+        bool valid;
         long tag;
         int data;
         long cnt;
@@ -51,11 +53,14 @@ private:
     struct Index {
         int cacheline_num;  
         int entry;
-        vector<struct CacheLine> cacheline;
+        // vector<struct CacheLine> cacheline;
+        struct CacheLine *cacheline;
     };
-    vector<struct Index> index;
+    // vector<struct Index> index;
     // struct Index* index = (struct Index *)malloc(cache_index * sizeof(struct Index));
+    struct Index* index;
 
+    void initArch(void);
     void insertLine(struct FileLine fileline);
     int isHit(struct FileLine fileline);
 
@@ -64,7 +69,7 @@ private:
     int computeIndex(string addr);
     int computeTag(string addr);
     int computeOffset(string addr);
-    float computeMissRate(long l, long miss_num);
+    double computeMissRate(long l, long miss_num);
 };
 
 struct FileLine {

@@ -7,8 +7,6 @@
 
 using namespace std;
 
-// #define DEBUG
-
 int main(int argc, char *argv[]) {
     
     int opt;
@@ -45,14 +43,13 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "# Number of ways must be in 0, 1, 2, 4, 8, 16! \n");
         return -1;   
     }
-    if (victim_block_num != 4 && victim_block_num != 8 && victim_block_num != 16) {
+    if (victim_block_num != 0 && victim_block_num != 4 && victim_block_num != 8 && victim_block_num != 16) {
         fprintf(stderr, "# Size of victim cache must be in 4, 8, 16! \n");
         return -1;   
     }
 
     CacheClass CacheArch(total_cache_size, cache_block_size, ways_num, victim_block_num, filename);
     CacheArch.Applications();
-
     
     return 0;
 }

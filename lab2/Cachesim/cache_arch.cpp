@@ -12,10 +12,30 @@ CacheClass::CacheClass(int t, int c, int w, int v, string fn) {
     cache_tag = ADDR_BITS - cache_index - cache_offset;
     cache_entry = log(total_cache_size / cache_block_size)/log(2) + 10;
 
+    cout << "=======================================================" << endl;
+    cout << "# In ths cache arch: " << endl;
+    cout << "Cache index: " << cache_index << endl;
+    cout << "Cache offset: " << cache_offset << endl;
+    cout << "Cache tag: " << cache_tag << endl;
+    cout << "=======================================================" << endl;
+
     miss_num = 0;
 
     victimline.push_back(CacheLine());
-    index.push_back(Index());
+}
+
+void CacheClass::initArch() {
+    long temp_index = pow(2, cache_index);
+    index = (struct Index *)malloc(temp_index * sizeof(struct Index));
+    cout << "# Allocating spaces for cache..." << endl;
+    for (int i = 0; i < temp_index; i++) {
+        index[i].cacheline = (struct CacheLine *)malloc(ways_num * sizeof(struct CacheLine));
+        for (int j = 0; j < ways_num; j++) {
+            index[i].cacheline[j].cnt = 0;
+            index[i].cacheline[j].valid = true;
+            index[i].cacheline[j].tag = 0;
+        }
+    }
 }
 
 vector<struct FileLine> CacheClass::readFile(string filename) {
@@ -54,23 +74,30 @@ string CacheClass::convertAddr(string str) {
     string ret_addr;
     for (int i = 0; i < str.length(); i++) {
         switch(toupper(str[i])) {
-            case '0': ret_addr.append("0000");
-            case '1': ret_addr.append("0001");
-            case '2': ret_addr.append("0010");
-            case '3': ret_addr.append("0011");
-            case '4': ret_addr.append("0100");
-            case '5': ret_addr.append("0101");
-            case '6': ret_addr.append("0110");
-            case '7': ret_addr.append("0111");
-            case '8': ret_addr.append("1000");
-            case '9': ret_addr.append("1001");
-            case 'A': ret_addr.append("1010");
-            case 'B': ret_addr.append("1011");
-            case 'C': ret_addr.append("1100");
-            case 'D': ret_addr.append("1101");
-            case 'E': ret_addr.append("1110");
-            case 'F': ret_addr.append("1111");
+            case '0': ret_addr.append("0000"); break;
+            case '1': ret_addr.append("0001"); break;
+            case '2': ret_addr.append("0010"); break;
+            case '3': ret_addr.append("0011"); break;
+            case '4': ret_addr.append("0100"); break;
+            case '5': ret_addr.append("0101"); break;
+            case '6': ret_addr.append("0110"); break;
+            case '7': ret_addr.append("0111"); break;
+            case '8': ret_addr.append("1000"); break;
+            case '9': ret_addr.append("1001"); break;
+            case 'A': ret_addr.append("1010"); break;
+            case 'B': ret_addr.append("1011"); break;
+            case 'C': ret_addr.append("1100"); break;
+            case 'D': ret_addr.append("1101"); break;
+            case 'E': ret_addr.append("1110"); break;
+            case 'F': ret_addr.append("1111"); break;
         }
+    }
+    // extract last 32 bits if longer; add 0s to the front if shorter
+    if (ret_addr.length() > ADDR_BITS) {
+        ret_addr = ret_addr.substr(ret_addr.length() - ADDR_BITS);
+    }
+    if (ret_addr.length() < ADDR_BITS) {
+        ret_addr = string(ADDR_BITS - ret_addr.length(), '0').append(ret_addr);
     }
     return ret_addr;
 }
@@ -81,7 +108,9 @@ int CacheClass::computeIndex(string addr) {
     int ret = 0;
     char c;
     for (int i = 0; i < cache_index; i++) {
-        ret += 2 ^ atoi(&str[i]);
+        if (str[str.length() - i] == '1') {
+            ret += pow(2, i);
+        }
     }
     return ret;
 }
@@ -92,7 +121,9 @@ int CacheClass::computeTag(string addr) {
     int ret = 0;
     char c;
     for (int i = 0; i < cache_index; i++) {
-        ret += 2 ^ atoi(&str[i]);
+        if (str[str.length() - i] == '1') {
+            ret += pow(2, i);
+        }
     }
     return ret;
 }
@@ -103,7 +134,9 @@ int CacheClass::computeOffset(string addr) {
     int ret = 0;
     char c;
     for (int i = 0; i < cache_index; i++) {
-        ret += 2 ^ atoi(&str[i]);
+        if (str[str.length() - i] == '1') {
+            ret += pow(2, i);
+        }
     }
     return ret;
 }
@@ -114,11 +147,18 @@ int CacheClass::computeOffset(string addr) {
 // 2: miss in cache, hit in victim cache
 int CacheClass::isHit(struct FileLine fileline) {
     int idx = computeIndex(fileline.addr);
+#ifdef DEBUG
+    cout << "computed idx: " << idx << endl;
+#endif // DEBUG
     long tag = computeTag(fileline.addr);
     long dest_tag = (tag << idx) | idx;     // tag that we need to find in victim cache
 
     // hit in cache
     for (int i = 0; i < ways_num; i++) {
+#ifdef DEBUG
+        cout << "valid: " << index[idx].cacheline[i].valid << endl;
+        cout << "tag: " << index[idx].cacheline[i].tag << endl;
+#endif // DEBUG
         if (!index[idx].cacheline[i].valid && index[idx].cacheline[i].tag == tag) {
             index[idx].cacheline[i].cnt += 1;
             return 1;
@@ -133,7 +173,6 @@ int CacheClass::isHit(struct FileLine fileline) {
         }
     }
     // miss in both cache and victim cache
-    miss_num += 1;
     return 0;
 }
 
@@ -146,8 +185,6 @@ void CacheClass::insertLine(struct FileLine fileline) {
     int min_victim_line = 0;
     int min_line = 0;
 
-    cout << "44444444444444" << endl;
-
     if (isHit(fileline) == 1) { // hit in cache. do nothing
         return;
     }
@@ -155,7 +192,6 @@ void CacheClass::insertLine(struct FileLine fileline) {
         for (int i = 0; i < ways_num; i++) {
             min_cnt = min(min_cnt, index[idx].cacheline[i].cnt);
         }
-        cout << "55555555555555" << endl;
         for (int i = 0; i < ways_num; i++) {
             if (index[idx].cacheline[i].cnt == min_cnt) {
                 // first assign to evicted cache line
@@ -166,7 +202,6 @@ void CacheClass::insertLine(struct FileLine fileline) {
                 // insert evicted line into victim cache
                 // if empty lines in victim cache, push directly
                 // if not, find the min cnt in victim cache and replace
-                cout << "66666666666666" << endl; 
                 if (victimline.size() < victim_block_num) {
                     victimline.push_back(evicted_cacheline);
                 }else {
@@ -177,12 +212,13 @@ void CacheClass::insertLine(struct FileLine fileline) {
                         }
                     }
                     victimline[min_victim_line] = evicted_cacheline;
+                    return;
                 }
             }
         }   
     }
-    cout << "777777777777777777" << endl;
     if (isHit(fileline) == 0) {                         // miss in both cache and victim cache, insert a new line
+        miss_num += 1;
         for (int i = 0; i < ways_num; i++) {
             if (index[idx].cacheline[i].valid == 1) {
                 index[idx].cacheline[i].tag = tag;
@@ -198,27 +234,53 @@ void CacheClass::insertLine(struct FileLine fileline) {
                 min_line = i;
             }
         }
-        // TODO: evict
+        for (int i = 1; i < ways_num; i++) {
+            // first assign to evicted cache line
+            evicted_cacheline = index[idx].cacheline[i];
+            // do replacement
+            index[idx].cacheline[i].tag = tag;
+            index[idx].cacheline[i].cnt = 1;
+        }
+        if (victimline.size() < victim_block_num) {
+            victimline.push_back(evicted_cacheline);
+        }else {
+            for (int j = 0; j < victim_block_num; j++) {
+                if (min_victim_cnt > victimline[j].cnt) {   // if update, fresh min victim line index
+                        min_victim_cnt = victimline[j].cnt;
+                        min_victim_line = j;
+                }
+            }
+            victimline[min_victim_line] = evicted_cacheline;
+            return;
+        }
     }
 }
 
-float CacheClass::computeMissRate(long l, long miss_num) {
-    return miss_num / l;
+double CacheClass::computeMissRate(long l, long miss_num) {
+    return 100 * double(miss_num) / double(l);
 }
 
 void CacheClass::Applications() {
     cout << "Reading trace file..." << filename << endl;
     vector<struct FileLine> filelines = readFile(filename);
     cout << "Total lines in the file: " << l << endl;
-    int v = 0;
+    initArch();
+    int v = 1;
 
     while (v < filelines.size()) {
+#ifdef DEBUG
+        cout << "filelines[" << v << "].addr: " << filelines[v].addr << endl;
+#endif
         filelines[v].addr = convertAddr(filelines[v].addr);
-        cout << "222222222222222" << endl;
+#ifdef DEBUG
+        cout << "filelines[" << v << "].addr: " << filelines[v].addr << endl;
+#endif // DEBUG
         insertLine(filelines[v]);
-        cout << "333333333333333" << endl;
         v++;
     }
     float miss_rate = computeMissRate(l, miss_num);
-    cout << "Miss rate of file [" << filename << "] is: " << miss_rate << endl;
+    cout << "miss_num: " << miss_num << endl;
+    cout << "l: " << l << endl;
+    cout << "# Miss rate of file " << filename << " is: " << miss_rate << "%" << endl;
+    exit (EXIT_SUCCESS);
 }
