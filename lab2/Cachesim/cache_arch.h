@@ -66,9 +66,12 @@ private:
 
     string convertAddr(string str);
     vector<struct FileLine> readFile(string filename);  
-    int computeIndex(string addr);
-    int computeTag(string addr);
-    int computeOffset(string addr);
+
+    long computeIndex(string addr);
+    long computeTag(string addr);
+    long computeOffset(string addr);
+    long computeAddr(string addr);
+    
     double computeMissRate(long l, long miss_num);
 };
 

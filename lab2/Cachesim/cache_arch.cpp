@@ -13,10 +13,10 @@ CacheClass::CacheClass(int t, int c, int w, int v, string fn) {
     cache_entry = log(total_cache_size / cache_block_size)/log(2) + 10;
 
     cout << "=======================================================" << endl;
-    cout << "# In ths cache arch: " << endl;
-    cout << "Cache index: " << cache_index << endl;
-    cout << "Cache offset: " << cache_offset << endl;
-    cout << "Cache tag: " << cache_tag << endl;
+    cout << "# Cache Design: " << endl;
+    cout << "# Cache index: " << cache_index << endl;
+    cout << "# Cache offset: " << cache_offset << endl;
+    cout << "# Cache tag: " << cache_tag << endl;
     cout << "=======================================================" << endl;
 
     miss_num = 0;
@@ -102,11 +102,10 @@ string CacheClass::convertAddr(string str) {
     return ret_addr;
 }
 
-int CacheClass::computeIndex(string addr) {
+long CacheClass::computeIndex(string addr) {
     string str;
     str.assign(addr, cache_tag, cache_index);
-    int ret = 0;
-    char c;
+    long ret = 0;
     for (int i = 0; i < cache_index; i++) {
         if (str[str.length() - i] == '1') {
             ret += pow(2, i);
@@ -115,11 +114,10 @@ int CacheClass::computeIndex(string addr) {
     return ret;
 }
 
-int CacheClass::computeTag(string addr) {
+long CacheClass::computeTag(string addr) {
     string str;
     str.assign(addr, 0, cache_tag);
-    int ret = 0;
-    char c;
+    long ret = 0;
     for (int i = 0; i < cache_index; i++) {
         if (str[str.length() - i] == '1') {
             ret += pow(2, i);
@@ -128,13 +126,22 @@ int CacheClass::computeTag(string addr) {
     return ret;
 }
 
-int CacheClass::computeOffset(string addr) {
+long CacheClass::computeOffset(string addr) {
     string str;
     str.assign(addr, cache_tag + cache_index, cache_offset);
-    int ret = 0;
-    char c;
+    long ret = 0;
     for (int i = 0; i < cache_index; i++) {
         if (str[str.length() - i] == '1') {
+            ret += pow(2, i);
+        }
+    }
+    return ret;
+}
+
+long CacheClass::computeAddr(string addr) {
+    long ret = 0;
+    for (int i = 0; i < cache_index + cache_tag; i++) {
+        if (addr[addr.length() - i] == '1') {
             ret += pow(2, i);
         }
     }
@@ -151,7 +158,10 @@ int CacheClass::isHit(struct FileLine fileline) {
     cout << "computed idx: " << idx << endl;
 #endif // DEBUG
     long tag = computeTag(fileline.addr);
-    long dest_tag = (tag << idx) | idx;     // tag that we need to find in victim cache
+    // FIXME: 
+    long dest_tag = computeAddr(fileline.addr);
+    // long dest_tag = (tag << idx) | idx;     // tag that we need to find in victim cache
+    
 
     // hit in cache
     for (int i = 0; i < ways_num; i++) {
@@ -159,7 +169,7 @@ int CacheClass::isHit(struct FileLine fileline) {
         cout << "valid: " << index[idx].cacheline[i].valid << endl;
         cout << "tag: " << index[idx].cacheline[i].tag << endl;
 #endif // DEBUG
-        if (!index[idx].cacheline[i].valid && index[idx].cacheline[i].tag == tag) {
+        if (index[idx].cacheline[i].valid == false && index[idx].cacheline[i].tag == tag) {
             index[idx].cacheline[i].cnt += 1;
             return 1;
         }
@@ -167,6 +177,7 @@ int CacheClass::isHit(struct FileLine fileline) {
     // hit in victim cache
     for (int i = 0; i < victim_block_num && i < victimline.size(); i++) {
         if (victimline[i].tag == dest_tag) {
+            cout << "Victim cache useful!" << endl;
             // hit_num += 1;
             victimline[i].cnt += 1;
             return 2;
@@ -188,6 +199,7 @@ void CacheClass::insertLine(struct FileLine fileline) {
     if (isHit(fileline) == 1) { // hit in cache. do nothing
         return;
     }
+    // FIXME: this never happens!
     if (isHit(fileline) == 2) { // miss in cache, hit in victim cache, do replacement, LRU
         for (int i = 0; i < ways_num; i++) {
             min_cnt = min(min_cnt, index[idx].cacheline[i].cnt);
@@ -199,6 +211,7 @@ void CacheClass::insertLine(struct FileLine fileline) {
                 // do replacement
                 index[idx].cacheline[i].tag = tag;
                 index[idx].cacheline[i].cnt = 1;
+                index[idx].cacheline[i].valid = false;
                 // insert evicted line into victim cache
                 // if empty lines in victim cache, push directly
                 // if not, find the min cnt in victim cache and replace
@@ -222,11 +235,12 @@ void CacheClass::insertLine(struct FileLine fileline) {
         for (int i = 0; i < ways_num; i++) {
             if (index[idx].cacheline[i].valid == 1) {
                 index[idx].cacheline[i].tag = tag;
-                index[idx].cacheline[i].valid = 0;
+                index[idx].cacheline[i].valid = false;
                 index[idx].cacheline[i].cnt += 1;
                 return;
             }
         }
+        // FIXME: this never happens!
         // no valid place for this addr, replace
         for (int i = 1; i < ways_num; i++) {
             if (min_cnt > index[idx].cacheline[i].cnt) {
@@ -240,6 +254,7 @@ void CacheClass::insertLine(struct FileLine fileline) {
             // do replacement
             index[idx].cacheline[i].tag = tag;
             index[idx].cacheline[i].cnt = 1;
+            index[idx].cacheline[i].valid = false;
         }
         if (victimline.size() < victim_block_num) {
             victimline.push_back(evicted_cacheline);
@@ -261,9 +276,9 @@ double CacheClass::computeMissRate(long l, long miss_num) {
 }
 
 void CacheClass::Applications() {
-    cout << "Reading trace file..." << filename << endl;
+    cout << "# Reading trace file..." << filename << endl;
     vector<struct FileLine> filelines = readFile(filename);
-    cout << "Total lines in the file: " << l << endl;
+    cout << "# Total lines in the file: " << l << endl;
     initArch();
     int v = 1;
 
