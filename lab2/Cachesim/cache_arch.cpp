@@ -23,6 +23,8 @@ CacheClass::CacheClass(int t, int c, int w, int v, string fn) {
     cout << "=======================================================" << endl;
 
     miss_num = 0;
+    min_cnt_cacheline_fully = 0;
+    min_cnt_victim_cacheline = 0;
 
     victimline.push_back(CacheLine());
 }
@@ -34,6 +36,7 @@ void CacheClass::initArch() {
         cout << "# Allocating spaces for cache..." << endl;  
         for (int i = 0; i < temp_index; i++) {
             index[i].cacheline = (struct CacheLine *)malloc(ways_num * sizeof(struct CacheLine));
+            index[i].min_cnt_cacheline = 0;
             for (int j = 0; j < ways_num; j++) {
                 index[i].cacheline[j].cnt = 0;
                 index[i].cacheline[j].valid = true;
@@ -49,11 +52,7 @@ void CacheClass::initArch() {
         // fully_assoc_lines.push_back(Index());
         for (int i = 0; i < fully_assoc_entry; i++) {
             fully_assoc_lines.push_back(tmp);
-#ifdef DEBUG
-            cout << "fully_assoc_lines [" << i << "].cacheline->valid: " << fully_assoc_lines[i].cacheline->valid << endl;
-#endif // DEBUG
         }
-        cout << "size of fully_assoc_lines: " << fully_assoc_lines.size() << endl;
     }
 }
 
@@ -201,8 +200,6 @@ int CacheClass::isHit(struct FileLine fileline) {
         // hit in cache
         for (int i = 0; i < fully_assoc_entry; i++) {
             if (fully_assoc_lines[i].cacheline->valid == false && fully_assoc_lines[i].cacheline->tag == tag) {
-                cout << "fully_assoc_lines[i].cacheline->valid: " << fully_assoc_lines[i].cacheline->valid << endl;
-                cout << "Hit!!!" << endl;
                 fully_assoc_lines[i].cacheline->cnt += 1;
                 return 1;
             }
@@ -222,7 +219,6 @@ int CacheClass::isHit(struct FileLine fileline) {
 void CacheClass::insertLine(struct FileLine fileline) {
     int idx = computeIndex(fileline.addr);
     long tag = computeTag(fileline.addr);
-    cout << "computed tag = " << tag << endl;
     long dest_tag = (tag << idx) | idx;     // tag that we need to find in victim cache
     long min_cnt = LONG_MAX;
     long min_victim_cnt = LONG_MAX;
@@ -234,7 +230,6 @@ void CacheClass::insertLine(struct FileLine fileline) {
             return;
         }
         // FIXME: this never happens!
-        // TODO: add break
         if (isHit(fileline) == 2) { // miss in cache, hit in victim cache, do replacement, LRU
             for (int i = 0; i < ways_num; i++) {
                 min_cnt = min(min_cnt, index[idx].cacheline[i].cnt);
@@ -307,7 +302,6 @@ void CacheClass::insertLine(struct FileLine fileline) {
         }
     }else { // fully assoc cache, ways_num = 0
         if (isHit(fileline) == 1) { // hit in cache. do nothing
-            cout << "11111111111111111" << endl;
             return;
         }
         if (isHit(fileline) == 2) { // miss in cache, hit in victim cache
@@ -402,9 +396,6 @@ void CacheClass::Applications() {
 
     while (v < filelines.size()) {
         filelines[v].addr = convertAddr(filelines[v].addr);
-#ifdef DEBUG
-        cout << "filelines[" << v << "].addr: " << filelines[v].addr << endl;
-#endif // DEBUG
         insertLine(filelines[v]);
         v++;
     }

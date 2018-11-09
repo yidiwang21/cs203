@@ -40,20 +40,21 @@ public:
 private:
     int cache_entry;
     long fully_assoc_entry;
-    long l = 0;          // line cnt in a file
+    long l;          // line cnt in a file
+    // store the line number of the minimum cnt 
+    long min_cnt_cacheline_fully;
+    long min_cnt_victim_cacheline;
 
     struct CacheLine {
         bool valid;
         long tag;
-        int data;
         long cnt;
     };
     struct CacheLine evicted_cacheline;
     vector<struct CacheLine> victimline;
 
     struct Index {
-        int cacheline_num;  
-        int entry;
+        int min_cnt_cacheline;  
         // vector<struct CacheLine> cacheline;
         struct CacheLine *cacheline;
     };
