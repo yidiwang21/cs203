@@ -1,11 +1,12 @@
 #include "cache_arch.h"
 
-CacheClass::CacheClass(int t, int c, int w, int v, string fn) {
+CacheClass::CacheClass(int t, int c, int w, int v, string fn, bool ve) {
     total_cache_size = t;
     cache_block_size = c;
     ways_num = w;
     victim_block_num = v;
     filename = fn;
+    victim_cache_enabled = ve;
 
     cache_offset = log(cache_block_size)/log(2);
     cache_index = (ways_num == 0) ? 0 : (log(total_cache_size / cache_block_size)/log(2) + 10 - log(ways_num)/log(2));  // consider fully assoc cache
@@ -20,16 +21,30 @@ CacheClass::CacheClass(int t, int c, int w, int v, string fn) {
     cout << "# Cache offset: " << cache_offset << endl;
     cout << "# Cache tag: " << cache_tag << endl;
     cout << "# Cache entry: " << cache_entry << endl;
+    cout << "# Victim cache enabled: " << victim_cache_enabled << endl;
+    cout << "# Victim cache blocks: " << victim_block_num << endl;
     cout << "=======================================================" << endl;
 
+    l = 0;
+    cnt_tmp = 0;
     miss_num = 0;
     min_cnt_cacheline_fully = 0;
     min_cnt_victim_cacheline = 0;
-
-    victimline.push_back(CacheLine());
 }
 
+// FIXME: program failed when using 1M with v = 0
+
 void CacheClass::initArch() {
+    if (victim_cache_enabled == true) {
+        struct CacheLine temp_victim_line;
+        temp_victim_line.cnt = 0;
+        temp_victim_line.tag = 0;
+        temp_victim_line.valid = true;
+        for (int k = 0; k < victim_block_num; k++) {
+            victimline.push_back(temp_victim_line);
+        }
+    }
+    
     if (ways_num != 0) {
         long temp_index = pow(2, cache_index);
         index = (struct Index *)malloc(temp_index * sizeof(struct Index));
@@ -186,11 +201,12 @@ int CacheClass::isHit(struct FileLine fileline) {
             }
         }
         // hit in victim cache
-        for (int i = 0; i < victim_block_num && i < victimline.size(); i++) {
+        for (int i = 0; i < victim_block_num; i++) {
             if (victimline[i].tag == dest_tag) {
                 cout << "Victim cache useful!" << endl;
                 // hit_num += 1;
                 victimline[i].cnt += 1;
+                cnt_tmp = victimline[i].cnt;
                 return 2;
             }
         }
@@ -205,10 +221,11 @@ int CacheClass::isHit(struct FileLine fileline) {
             }
         }
         // hit in victim cache
-        for (int i = 0; i < victim_block_num && i < victimline.size(); i++) {
+        for (int i = 0; i < victim_block_num; i++) {
             if (victimline[i].tag == dest_tag) {
                 cout << "Victim cache useful!" << endl;
                 victimline[i].cnt += 1;
+                cnt_tmp = victimline[i].cnt;
                 return 2;
             }
         }
@@ -230,7 +247,7 @@ void CacheClass::insertLine(struct FileLine fileline) {
             return;
         }
         // FIXME: this never happens!
-        if (isHit(fileline) == 2) { // miss in cache, hit in victim cache, do replacement, LRU
+        if (isHit(fileline) == 2 && victim_cache_enabled == true) { // miss in cache, hit in victim cache, do replacement, LRU
             for (int i = 0; i < ways_num; i++) {
                 min_cnt = min(min_cnt, index[idx].cacheline[i].cnt);
             }
@@ -240,23 +257,28 @@ void CacheClass::insertLine(struct FileLine fileline) {
                     evicted_cacheline = index[idx].cacheline[i];
                     // do replacement
                     index[idx].cacheline[i].tag = tag;
-                    index[idx].cacheline[i].cnt = 1;
+                    index[idx].cacheline[i].cnt = cnt_tmp;
                     index[idx].cacheline[i].valid = false;
                     // insert evicted line into victim cache
                     // if victim cache available, push directly
                     // if not, find the min cnt in victim cache and replace
-                    if (victimline.size() < victim_block_num) {
-                        victimline.push_back(evicted_cacheline);
-                    }else {
-                        for (int j = 0; j < victim_block_num; j++) {
-                            if (min_victim_cnt > victimline[j].cnt) {   // if update, fresh min victim line index
-                                min_victim_cnt = victimline[j].cnt;
-                                min_victim_line = j;
-                            }
+                    for (int i = 0; i < victim_block_num; i++) {
+                        if (victimline[i].valid == true) {
+                            victimline[i] = evicted_cacheline;
+                            return;
                         }
-                        victimline[min_victim_line] = evicted_cacheline;
+                    }
+                    for (int j = 0; j < victim_block_num; j++) {
+                        if (min_victim_cnt > victimline[j].cnt) {   // if update, fresh min victim line index
+                            min_victim_cnt = victimline[j].cnt;
+                            min_victim_line = j;
+                        }
+                    }
+                    if (victim_cache_enabled == true) {
+                         victimline[min_victim_line] = evicted_cacheline;
                         return;
                     }
+                   
                 }
             }   
         }
@@ -287,15 +309,19 @@ void CacheClass::insertLine(struct FileLine fileline) {
                 index[idx].cacheline[i].cnt = 1;
                 index[idx].cacheline[i].valid = false;
             }
-            if (victimline.size() < victim_block_num) {
-                victimline.push_back(evicted_cacheline);
-            }else {
-                for (int j = 0; j < victim_block_num; j++) {
-                    if (min_victim_cnt > victimline[j].cnt) {   // if update, fresh min victim line index
-                            min_victim_cnt = victimline[j].cnt;
-                            min_victim_line = j;
-                    }
+            for (int i = 0; i < victim_block_num; i++) {
+                if (victimline[i].valid == true) {
+                    victimline[i] = evicted_cacheline;
+                    return;
                 }
+            }
+            for (int j = 0; j < victim_block_num; j++) {
+                if (min_victim_cnt > victimline[j].cnt) {   // if update, fresh min victim line index
+                    min_victim_cnt = victimline[j].cnt;
+                    min_victim_line = j;
+                }
+            }
+            if (victim_cache_enabled == true) {
                 victimline[min_victim_line] = evicted_cacheline;
                 return;
             }
@@ -308,7 +334,7 @@ void CacheClass::insertLine(struct FileLine fileline) {
             for (int i = 0; i < fully_assoc_entry; i++) { // find an valid line, and insert
                 if (fully_assoc_lines[i].cacheline->valid == true) {
                     fully_assoc_lines[i].cacheline->valid = false;
-                    fully_assoc_lines[i].cacheline->cnt = 1;
+                    fully_assoc_lines[i].cacheline->cnt = cnt_tmp;
                     fully_assoc_lines[i].cacheline->tag = tag;
                     return;
                 }

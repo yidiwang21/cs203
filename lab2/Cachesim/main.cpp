@@ -48,9 +48,6 @@ int main(int argc, char *argv[]) {
         return -1;   
     }
 
-    if (victim_block_num == 0) {
-        cout << "# Victim cache disabled..." << endl;
-    }
     if (ways_num == 0) {
         cout << "# Fully associative cache..." << endl;
     }
@@ -58,7 +55,7 @@ int main(int argc, char *argv[]) {
         cout << "# Direct mapped cache..." << endl;
     }
 
-    CacheClass CacheArch(total_cache_size, cache_block_size, ways_num, victim_block_num, filename);
+    CacheClass CacheArch(total_cache_size, cache_block_size, ways_num, victim_block_num, filename, victim_cache_enabled);
     CacheArch.Applications();
     
     return 0;

@@ -20,7 +20,7 @@ using namespace std;
 
 class CacheClass {
 public:
-    CacheClass(int t, int c, int w, int v, string fn);
+    CacheClass(int t, int c, int w, int v, string fn, bool ve);
     int total_cache_size;
     int cache_block_size;
     int ways_num;
@@ -41,6 +41,7 @@ private:
     int cache_entry;
     long fully_assoc_entry;
     long l;          // line cnt in a file
+    long cnt_tmp;
     // store the line number of the minimum cnt 
     long min_cnt_cacheline_fully;
     long min_cnt_victim_cacheline;
