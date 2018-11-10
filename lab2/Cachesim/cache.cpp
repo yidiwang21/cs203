@@ -2,6 +2,8 @@
 
 using namespace std;
 
+#define DEBUG
+
 #define ADDR_BITS   32
 #define INT_MAX     65535
 #define LONG_MAX    4294967295   
@@ -37,6 +39,8 @@ CacheClass::CacheClass(unsigned int t, unsigned int c, unsigned int w, unsigned 
     cout << "# Cache entry per index: " << entry_per_index << endl;
     cout << "# Victim cache enabled: " << victim_cache_enabled << endl;
     cout << "# Victim cache blocks: " << victim_block_num << endl;
+    if (ways_num == 0) cout << "# Fully associative cache..." << endl;
+    if (ways_num == 1) cout << "# Direct mapped cache..." << endl;
     cout << "=======================================================" << endl;
 }
 
@@ -138,7 +142,7 @@ unsigned long CacheClass::computeIndex(string addr) {
     str.assign(addr, cache_tag, cache_index);
     unsigned long ret = 0;
     for (unsigned long i = 0; i < cache_index; i++) {
-        if (str[str.length() - i] == '1') {
+        if (str[str.length() - i - 1] == '1') {
             ret += pow(2, i);
         }
     }
@@ -150,7 +154,7 @@ unsigned long CacheClass::computeTag(string addr) {
     str.assign(addr, 0, cache_tag);
     unsigned long ret = 0;
     for (unsigned long i = 0; i < cache_tag; i++) {
-        if (str[str.length() - i] == '1') {
+        if (str[str.length() - i - 1] == '1') {
             ret += pow(2, i);
         }
     }
@@ -162,7 +166,7 @@ unsigned long CacheClass::computeOffset(string addr) {
     str.assign(addr, cache_tag + cache_index, cache_offset);
     unsigned long ret = 0;
     for (unsigned long i = 0; i < cache_offset; i++) {
-        if (str[str.length() - i] == '1') {
+        if (str[str.length() - i - 1] == '1') {
             ret += pow(2, i);
         }
     }
@@ -170,9 +174,11 @@ unsigned long CacheClass::computeOffset(string addr) {
 }
 
 unsigned long CacheClass::computeAddr(string addr) {
+    string str;
+    str.assign(addr, 0, cache_tag + cache_index);
     unsigned long ret = 0;
     for (unsigned long i = 0; i < cache_index + cache_tag; i++) {
-        if (addr[addr.length() - i] == '1') {
+        if (str[str.length() - i - 1] == '1') {
             ret += pow(2, i);
         }
     }
@@ -180,9 +186,9 @@ unsigned long CacheClass::computeAddr(string addr) {
 }
 
 int CacheClass::isHit(struct FileLine fileline) {
-    long dest_idx = computeIndex(fileline.addr);
-    long dest_tag = computeTag(fileline.addr);
-    long dest_tag_full = computeAddr(fileline.addr);    // for comparison in victim cache
+    unsigned long dest_idx = computeIndex(fileline.addr);
+    unsigned long dest_tag = computeTag(fileline.addr);
+    unsigned long dest_tag_full = (dest_tag << cache_index) | dest_idx;
 
     // hit in cache
     for (unsigned long j = 0; j < entry_per_index; j++) {
@@ -194,7 +200,9 @@ int CacheClass::isHit(struct FileLine fileline) {
     // miss in cache, hit in victim cache
     for (int j = 0; j < victim_block_num; j++) {
         if (victim_valid[j] == false && victim_tag[j] == dest_tag_full) {
+        #ifdef DEBUG
             cout << "Victim cache useful!" << endl;
+        #endif // DEBUG
             victim_cnt[j] += 1;
             hit_victim_col = j;
             return 2;
@@ -239,7 +247,8 @@ unsigned int CacheClass::updateMinVictimline() {
 void CacheClass::insertLine(struct FileLine fileline) {
     unsigned long src_idx = computeIndex(fileline.addr);
     unsigned long src_tag = computeTag(fileline.addr);
-    unsigned long src_tag_full = computeAddr(fileline.addr);
+    unsigned long dest_tag_full = (src_tag << cache_index) | src_idx;
+    // unsigned long test_tag = computeAddr(fileline.addr);
 
     // hit in cache, do nothing
     if (isHit(fileline) == 1) return;
@@ -335,13 +344,14 @@ void CacheClass::Applications() {
         v++;
     }
     float miss_rate = computeMissRate(line_num, miss_num);
-    cout << "miss_num: " << miss_num << endl;
-    cout << "l: " << line_num << endl;
+    cout << "# Miss num: " << miss_num << endl;
+    cout << "# Lines in the file: " << line_num << endl;
     cout << "# Miss rate of file " << filename << " is: " << miss_rate << "%" << endl;
-
+#ifdef DEBUG
     cout << "victim cache: " << endl;
     for (int i = 0; i <victim_block_num; i++) {
         cout << i << ": " << victim_tag[i] << endl;
     }
+#endif
     exit (EXIT_SUCCESS);
 }
