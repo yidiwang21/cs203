@@ -16,6 +16,7 @@ make
 ### Performance
 ASSOCIATIVITY
 with victim cache disabled
+
 | Trace  | Direct  |  2-way  |  4 way  |Fully Assoc|
 | ------ | ------- | ------- | ------- | --------- |
 |gcc-10K |  5.47%  |  5.46%  |  5.46%  |   5.46%   |
@@ -24,6 +25,7 @@ with victim cache disabled
 
 VICTIM CACHE
 with gcc-1M trace
+
 |    VC     | No VC   |    4    |    8    |   16    |
 |-----------|---------|---------|---------|---------|
 |   Direct  |0.837404%|0.82042% |0.817622%|0.810789%|
