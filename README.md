@@ -29,3 +29,8 @@ with gcc-1M trace
 |   Direct  |0.837404%|0.82042% |0.817622%|0.810789%|
 |   4-way   |0.700558%|0.698021%|0.698021%|0.69776% |
 |Fully Assoc|0.69776% |0.69776% |0.69776% |0.69776% |
+
+| First Header  | Second Header |
+| ------------- | ------------- |
+| Content Cell  | Content Cell  |
+| Content Cell  | Content Cell  |
