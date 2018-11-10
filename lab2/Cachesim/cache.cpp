@@ -1,8 +1,12 @@
 #include "cache.h"
 
-#define ADDR_BITS   32
+using namespace std;
 
-CacheClass::CacheClass(int t, int c, int w, int v, string fn, bool ve) {
+#define ADDR_BITS   32
+#define INT_MAX     65535
+#define LONG_MAX    4294967295   
+
+CacheClass::CacheClass(unsigned int t, unsigned int c, unsigned int w, unsigned int v, string fn, bool ve) {
     total_cache_size = t;
     cache_block_size = c;
     ways_num = w;
@@ -18,6 +22,10 @@ CacheClass::CacheClass(int t, int c, int w, int v, string fn, bool ve) {
     actual_index = pow(2, cache_index);
     entry_per_index = (ways_num == 0) ? pow(2, cache_entry) : ways_num;
 
+    hit_victim_col = -1;
+    evicted_tag = 0;
+    evicted_cnt = 0;
+
     miss_num = 0;
     line_num = 0;
 
@@ -26,7 +34,7 @@ CacheClass::CacheClass(int t, int c, int w, int v, string fn, bool ve) {
     cout << "# Cache index: " << cache_index << endl;
     cout << "# Cache offset: " << cache_offset << endl;
     cout << "# Cache tag: " << cache_tag << endl;
-    cout << "# Cache entry: " << cache_entry << endl;
+    cout << "# Cache entry per index: " << entry_per_index << endl;
     cout << "# Victim cache enabled: " << victim_cache_enabled << endl;
     cout << "# Victim cache blocks: " << victim_block_num << endl;
     cout << "=======================================================" << endl;
@@ -35,17 +43,17 @@ CacheClass::CacheClass(int t, int c, int w, int v, string fn, bool ve) {
 void CacheClass::initArch() {
     // allocate spaces cache (including fully assoc cache), using row ptr 
     cout << "# Allocating spaces for cache..." << endl;
-    tag_array = (long **)malloc(actual_index * sizeof(long *));
-    cnt_array = (long **)malloc(actual_index * sizeof(long *));
+    tag_array = (unsigned long **)malloc(actual_index * sizeof(unsigned long *));
+    cnt_array = (unsigned long **)malloc(actual_index * sizeof(unsigned long *));
     valid_array = (bool **)malloc(actual_index * sizeof(bool *));
-    min_cnt_col_array = (long *)malloc(actual_index * sizeof(long));
-    for (int i = 0; i < actual_index; i++) {
-        tag_array[i] = (long *)malloc(entry_per_index * sizeof(long));
-        cnt_array[i] = (long *)malloc(entry_per_index * sizeof(long));
+    min_cnt_col_array = (unsigned long *)malloc(actual_index * sizeof(unsigned long));
+    for (unsigned long i = 0; i < actual_index; i++) {
+        tag_array[i] = (unsigned long *)malloc(entry_per_index * sizeof(unsigned long));
+        cnt_array[i] = (unsigned long *)malloc(entry_per_index * sizeof(unsigned long));
         valid_array[i] = (bool *)malloc(entry_per_index * sizeof(bool));
         // initialize values
         min_cnt_col_array[i] = 0;
-        for (int j = 0; j < entry_per_index; j++) {
+        for (unsigned long j = 0; j < entry_per_index; j++) {
             tag_array[i][j] = 0;
             cnt_array[i][j] = 0;
             valid_array[i][j] = true;
@@ -55,16 +63,16 @@ void CacheClass::initArch() {
     if (victim_cache_enabled == false) return;
     // allocate spaces for victim cache
     cout << "# Allocating spaces for vicitm cache..." << endl;
-    victim_tag = (long *)malloc(victim_block_num * sizeof(long));
-    victim_cnt = (long *)malloc(victim_block_num * sizeof(long));
+    victim_tag = (unsigned long *)malloc(victim_block_num * sizeof(unsigned long));
+    victim_cnt = (unsigned long *)malloc(victim_block_num * sizeof(unsigned long));
     victim_valid = (bool *)malloc(victim_block_num * sizeof(bool));
     min_cnt_col_victim = 0;
     for (int k = 0; k < victim_block_num; k++) {
         victim_tag[k] = 0;
         victim_cnt[k] = 0;
-        victim_valid[k] = 0;
+        victim_valid[k] = true;
     }
-    // TODO: tag cannot be 0 in isHit()
+    cout << "# Allocating spaces finished." << endl;
 }
 
 vector<struct FileLine> CacheClass::readFile(string filename) {
@@ -123,4 +131,217 @@ string CacheClass::convertAddr(string str) {
         ret_addr = string(ADDR_BITS - ret_addr.length(), '0').append(ret_addr);
     }
     return ret_addr;
+}
+
+unsigned long CacheClass::computeIndex(string addr) {
+    string str;
+    str.assign(addr, cache_tag, cache_index);
+    unsigned long ret = 0;
+    for (unsigned long i = 0; i < cache_index; i++) {
+        if (str[str.length() - i] == '1') {
+            ret += pow(2, i);
+        }
+    }
+    return ret;
+}
+
+unsigned long CacheClass::computeTag(string addr) {
+    string str;
+    str.assign(addr, 0, cache_tag);
+    unsigned long ret = 0;
+    for (unsigned long i = 0; i < cache_tag; i++) {
+        if (str[str.length() - i] == '1') {
+            ret += pow(2, i);
+        }
+    }
+    return ret;
+}
+
+unsigned long CacheClass::computeOffset(string addr) {
+    string str;
+    str.assign(addr, cache_tag + cache_index, cache_offset);
+    unsigned long ret = 0;
+    for (unsigned long i = 0; i < cache_offset; i++) {
+        if (str[str.length() - i] == '1') {
+            ret += pow(2, i);
+        }
+    }
+    return ret;
+}
+
+unsigned long CacheClass::computeAddr(string addr) {
+    unsigned long ret = 0;
+    for (unsigned long i = 0; i < cache_index + cache_tag; i++) {
+        if (addr[addr.length() - i] == '1') {
+            ret += pow(2, i);
+        }
+    }
+    return ret;
+}
+
+int CacheClass::isHit(struct FileLine fileline) {
+    long dest_idx = computeIndex(fileline.addr);
+    long dest_tag = computeTag(fileline.addr);
+    long dest_tag_full = computeAddr(fileline.addr);    // for comparison in victim cache
+
+    // hit in cache
+    for (unsigned long j = 0; j < entry_per_index; j++) {
+        if (valid_array[dest_idx][j] == false && tag_array[dest_idx][j] == dest_tag) {
+            cnt_array[dest_idx][j] += 1;
+            return 1;
+        }
+    }
+    // miss in cache, hit in victim cache
+    for (int j = 0; j < victim_block_num; j++) {
+        if (victim_valid[j] == false && victim_tag[j] == dest_tag_full) {
+            cout << "Victim cache useful!" << endl;
+            victim_cnt[j] += 1;
+            hit_victim_col = j;
+            return 2;
+        }
+    }
+    // miss in both cache and victim cache
+    return 0;
+}
+
+void CacheClass::clearVictimLine(int idx) {
+    victim_cnt[idx] = 0;
+    victim_tag[idx] = 0;
+    victim_valid[idx] = true;
+}
+
+unsigned long CacheClass::updateMinCacheline(unsigned long idx) {
+    unsigned long ret = 0;  // the col index of the min element cnt @ idx in cache
+    unsigned long tmp = 0;
+    for (unsigned long j = 0; j < entry_per_index; j++) {
+        if (tmp > cnt_array[idx][j]) { // find new min, update
+            tmp = cnt_array[idx][j];
+            ret = j;
+        }
+    }
+    return ret;
+}
+
+unsigned int CacheClass::updateMinVictimline() {
+    unsigned int ret = 0;  // the col index of the min element cnt @ idx in victim cache
+    unsigned long tmp = 0;
+    for (unsigned long j = 0; j < victim_block_num; j++) {
+        if (tmp > victim_cnt[j]) { // find new min, update
+            tmp = victim_cnt[j];
+            ret = j;
+        }
+    }
+    return ret;
+}
+
+
+
+void CacheClass::insertLine(struct FileLine fileline) {
+    unsigned long src_idx = computeIndex(fileline.addr);
+    unsigned long src_tag = computeTag(fileline.addr);
+    unsigned long src_tag_full = computeAddr(fileline.addr);
+
+    // hit in cache, do nothing
+    if (isHit(fileline) == 1) return;
+    
+    min_cnt_col_array[src_idx] = updateMinCacheline(src_idx);
+    unsigned long tmp_col = min_cnt_col_array[src_idx];
+    // miss in cache, hit in victim cache, only when victim cache enabled
+    if (isHit(fileline) == 2 && victim_cache_enabled == true) {
+        // cacheline available, insert line to cache, delete in victim cache
+        for (unsigned long j = 0; j < entry_per_index; j++) {
+            if (valid_array[src_idx][j] == true) {
+                tag_array[src_idx][j] = src_tag;
+                cnt_array[src_idx][j] = victim_cnt[hit_victim_col];
+                valid_array[src_idx][j] = false;
+                clearVictimLine(j);
+                return;
+            }
+        }
+        // conflict miss in cache, evicted line -> victim cache, replace evicted line in cache
+        evicted_tag = tag_array[src_idx][(min_cnt_col_array[src_idx])];
+        evicted_tag = (evicted_tag << cache_index) | src_idx;   // to fit in victim tag
+        evicted_cnt = cnt_array[src_idx][(min_cnt_col_array[src_idx])];
+        // put hit line into cache
+        tag_array[src_idx][(min_cnt_col_array[src_idx])] = src_tag;
+        cnt_array[src_idx][(min_cnt_col_array[src_idx])] = victim_cnt[hit_victim_col];
+        valid_array[src_idx][(min_cnt_col_array[src_idx])] = false;
+        // put evicted line into victim cache
+        victim_tag[hit_victim_col] = evicted_tag;
+        victim_cnt[hit_victim_col] = evicted_cnt;
+        victim_valid[hit_victim_col] = false;
+        return;
+    }
+    // miss in both cache and victim cache
+    if (isHit(fileline) == 0) {
+        miss_num += 1;
+        // cacheline available, insert line to cache
+        for (unsigned long j = 0; j < entry_per_index; j++) {
+            if (valid_array[src_idx][j] == true) {
+                tag_array[src_idx][j] = src_tag;
+                cnt_array[src_idx][j] = victim_cnt[hit_victim_col];
+                valid_array[src_idx][j] = false;
+                return;
+            }
+        }
+        // conflict miss in cache, evicted line -> victim cache, replace evicted line in cache
+        if (victim_cache_enabled == false) {    // put new line into cache
+            tag_array[src_idx][tmp_col] = src_tag;
+            cnt_array[src_idx][tmp_col] = 1;
+            valid_array[src_idx][tmp_col] = false;
+            return;
+        }else {
+            // get evicted line
+            evicted_tag = tag_array[src_idx][tmp_col];
+            evicted_tag = (evicted_tag << cache_index) | src_idx;   // to fit in victim tag
+            evicted_cnt = cnt_array[src_idx][tmp_col];
+            // put new line into cache
+            tag_array[src_idx][tmp_col] = src_tag;
+            cnt_array[src_idx][tmp_col] = victim_cnt[hit_victim_col];
+            valid_array[src_idx][tmp_col] = false;
+            // if available space in victim cache
+            for (int j = 0; j < victim_block_num; j++) {
+                if (victim_valid[j] == true) {
+                    victim_tag[j] = evicted_tag;
+                    victim_cnt[j] = evicted_cnt;
+                    victim_valid[j] = false;
+                    return;
+                }
+            }
+            // no available space in victim line, LRU
+            min_cnt_col_victim = updateMinVictimline();
+            victim_tag[min_cnt_col_victim] = evicted_tag;
+            victim_cnt[min_cnt_col_victim] = evicted_cnt;
+            victim_valid[min_cnt_col_victim] = false;
+            return;
+        }
+    }
+}
+
+double CacheClass::computeMissRate(long l, long miss_num) {
+    return 100 * double(miss_num) / double(l);
+}
+
+void CacheClass::Applications() {
+    cout << "# Reading trace file..." << filename << endl;
+    vector<struct FileLine> filelines = readFile(filename);
+    cout << "# Total lines in the file: " << line_num << endl;
+    initArch();
+    int v = 1;
+
+    while (v < filelines.size()) {
+        filelines[v].addr = convertAddr(filelines[v].addr);
+        insertLine(filelines[v]);
+        v++;
+    }
+    float miss_rate = computeMissRate(line_num, miss_num);
+    cout << "miss_num: " << miss_num << endl;
+    cout << "l: " << line_num << endl;
+    cout << "# Miss rate of file " << filename << " is: " << miss_rate << "%" << endl;
+
+    cout << "victim cache: " << endl;
+    for (int i = 0; i <victim_block_num; i++) {
+        cout << i << ": " << victim_tag[i] << endl;
+    }
+    exit (EXIT_SUCCESS);
 }

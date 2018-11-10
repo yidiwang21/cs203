@@ -21,48 +21,57 @@ struct FileLine {
 class CacheClass
 {
 public:
-    CacheClass(int t, int c, int w, int v, string fn, bool ve);
-    int total_cache_size;
-    int cache_block_size;
-    int ways_num;
-    int victim_block_num;
+    CacheClass(unsigned int t, unsigned int c, unsigned int w, unsigned int v, string fn, bool ve);
+    unsigned int total_cache_size;
+    unsigned int cache_block_size;
+    unsigned int ways_num;
+    unsigned int victim_block_num;
     string filename;
     bool victim_cache_enabled;
 
+    void Applications();
+
 private:
-    int cache_offset;
-    int cache_index;
-    int cache_tag;
-    int cache_entry;
+    unsigned int cache_offset;
+    unsigned int cache_index;
+    unsigned int cache_tag;
+    unsigned int cache_entry;
 
-    long actual_index;
-    long entry_per_index;
+    unsigned long actual_index;
+    unsigned long entry_per_index;
 
-    long miss_num;
-    long line_num;
+    unsigned long miss_num;
+    unsigned long line_num;
 
     // methods of operation
     void initArch(void);
+    void clearVictimLine(int idx);
     void insertLine(struct FileLine fileline);
+    unsigned long updateMinCacheline(unsigned long idx);
+    unsigned int updateMinVictimline();
     int isHit(struct FileLine fileline);
     string convertAddr(string str);
-    long computeIndex(string addr);
-    long computeTag(string addr);
-    long computeOffset(string addr);
-    long computeAddr(string addr);
+    unsigned long computeIndex(string addr);
+    unsigned long computeTag(string addr);
+    unsigned long computeOffset(string addr);
+    unsigned long computeAddr(string addr);
     double computeMissRate(long line_num, long miss_num);
     vector<struct FileLine> readFile(string filename);  
 
     // basic data struct of cache
-    long **tag_array;    // store tags, dimension: index * ways
-    long **cnt_array;    // store cnt of each tag, dimension: index * ways
+    unsigned long **tag_array;    // store tags, dimension: index * ways
+    unsigned long **cnt_array;    // store cnt of each tag, dimension: index * ways
     bool **valid_array;    // store valid bit of each tag, dimension: index * ways
-    long *min_cnt_col_array;    // store the col idx of the minimum cnt in a index, dimension: index * 1
+    unsigned long *min_cnt_col_array;    // store the col idx of the minimum cnt in a index, dimension: index * 1
     // victim cache
-    long *victim_tag;   // store tag in the victim cache, dimension: 1 * victim_block_num
-    long *victim_cnt; // store cnt in the victim cache, dimension: 1 * victim_block_num
+    unsigned long *victim_tag;   // store tag in the victim cache, dimension: 1 * victim_block_num
+    unsigned long *victim_cnt; // store cnt in the victim cache, dimension: 1 * victim_block_num
     bool *victim_valid; // store valid bit in the victim cache, dimension: 1 * victim_block_num
     int min_cnt_col_victim;    // store the col idx of the minimum cnt in the vicitm cache
+    int hit_victim_col;       // store the entry # of victim cache if hit in victim cache
+    // evicted buf
+    unsigned long evicted_tag;  // need to convert to victim tag
+    unsigned long evicted_cnt;
 };
 
 #endif

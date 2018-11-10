@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include "unistd.h"
 
-#include "cache_arch.h"
+#include "cache.h"
 
 using namespace std;
 
