@@ -220,7 +220,7 @@ void CacheClass::clearVictimLine(int idx) {
 
 unsigned long CacheClass::updateMinCacheline(unsigned long idx) {
     unsigned long ret = 0;  // the col index of the min element cnt @ idx in cache
-    unsigned long tmp = 0;
+    unsigned long tmp = LONG_MAX;
     for (unsigned long j = 0; j < entry_per_index; j++) {
         if (tmp > cnt_array[idx][j]) { // find new min, update
             tmp = cnt_array[idx][j];
@@ -232,7 +232,7 @@ unsigned long CacheClass::updateMinCacheline(unsigned long idx) {
 
 unsigned int CacheClass::updateMinVictimline() {
     unsigned int ret = 0;  // the col index of the min element cnt @ idx in victim cache
-    unsigned long tmp = 0;
+    unsigned long tmp = LONG_MAX;
     for (unsigned long j = 0; j < victim_block_num; j++) {
         if (tmp > victim_cnt[j]) { // find new min, update
             tmp = victim_cnt[j];
