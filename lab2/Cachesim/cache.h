@@ -56,6 +56,7 @@ private:
     unsigned long computeOffset(string addr);
     unsigned long computeAddr(string addr);
     double computeMissRate(long line_num, long miss_num);
+    double computeHitRate(long line_num, long miss_num);
     vector<struct FileLine> readFile(string filename);  
 
     // basic data struct of cache

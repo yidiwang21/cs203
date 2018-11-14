@@ -2,7 +2,7 @@
 
 using namespace std;
 
-#define DEBUG
+// #define DEBUG
 
 #define ADDR_BITS   32
 #define INT_MAX     65535
@@ -202,7 +202,7 @@ int CacheClass::isHit(struct FileLine fileline) {
         if (victim_valid[j] == false && victim_tag[j] == dest_tag_full) {
         #ifdef DEBUG
             cout << "Victim cache useful!" << endl;
-        #endif // DEBUG
+        #endif
             victim_cnt[j] += 1;
             hit_victim_col = j;
             return 2;
@@ -331,6 +331,10 @@ double CacheClass::computeMissRate(long l, long miss_num) {
     return 100 * double(miss_num) / double(l);
 }
 
+double CacheClass::computeHitRate(long l, long miss_num) {
+    return 100 * (double(l) - double(miss_num)) / double(l);
+}
+
 void CacheClass::Applications() {
     cout << "# Reading trace file..." << filename << endl;
     vector<struct FileLine> filelines = readFile(filename);
@@ -344,9 +348,11 @@ void CacheClass::Applications() {
         v++;
     }
     float miss_rate = computeMissRate(line_num, miss_num);
+    float hit_rate = computeHitRate(line_num, miss_num);
     cout << "# Miss num: " << miss_num << endl;
     cout << "# Lines in the file: " << line_num << endl;
     cout << "# Miss rate of file " << filename << " is: " << miss_rate << "%" << endl;
+    cout << "# Hit rate of file " << filename << " is: " << hit_rate << "%" << endl;
 #ifdef DEBUG
     cout << "victim cache: " << endl;
     for (int i = 0; i <victim_block_num; i++) {
