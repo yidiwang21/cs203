@@ -13,20 +13,20 @@ make
 make
 ./cachesim -i [filename] -c [cache size (KB)] -b [cache block szie (B)] -w [set assoc] -v [victim cache lines]
 ```
-### Performance
+### Performance: Hit Rate
 ASSOCIATIVITY (with victim cache disabled)
 
 | Trace  | Direct  |  2-way  |  4 way  |Fully Assoc|
 | ------ | ------- | ------- | ------- | --------- |
-|gcc-10K |  5.47%  |  5.46%  |  5.46%  |   5.46%   |
-|gcc-1M  |0.837404%|0.734005%|0.700558%| 0.69776%  |
+|gcc-10K |  94.53% |  94.54% |  94.54% |   94.54%  |
+|gcc-1M  | 99.1626%| 99.2971%| 99.3022%|  99.3022% |
 
 
 VICTIM CACHE (with gcc-1M trace)
 
-|    VC     | No VC   |    4    |    8    |   16    |
-|-----------|---------|---------|---------|---------|
-|   Direct  |0.837404%|0.82042% |0.817622%|0.810789%|
-|   4-way   |0.700558%|0.698021%|0.698021%|0.69776% |
-|Fully Assoc|0.69776% |0.69776% |0.69776% |0.69776% |
+|    VC     |    4    |    8    |    16   |
+|-----------|---------|---------|---------|
+|   Direct  | 99.1962%| 99.2193%| 99.2438%|
+|   4-way   | 99.3022%| 99.3022%| 99.3022%|
+|Fully Assoc| 99.3022%| 99.3022%| 99.3022%|
 
