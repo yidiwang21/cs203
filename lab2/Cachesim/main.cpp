@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
             case 'b': cache_block_size = atoi(optarg); break;
             case 'w': ways_num = atoi(optarg); break;
             case 'v': victim_block_num = atoi(optarg); victim_cache_enabled = true; break;
-            case '?': fprintf(stderr, "# Usage: \n -i [filename] -cs [Total cache size] -bs [Cache block size] -w [Number of ways] ");
+            case '?': fprintf(stderr, "# Usage: \n -i [filename] -cs [Total cache size] -bs [Cache block size] -w [Number of ways] -v [victim block number]");
             default: cout<<endl; abort();
         }
     }
