@@ -10,8 +10,7 @@ make
 ```
 #### lab2:
 ```
-make
-./cachesim -i [filename] -c [cache size (KB)] -b [cache block szie (B)] -w [set assoc] -v [victim cache lines]
+./run.sh -i [filename] -cs [Total cache size] -bs [Cache block size] -w [Number of ways] -v [victim block number]
 ```
 ### Performance: Hit Rate
 ASSOCIATIVITY (with victim cache disabled)
