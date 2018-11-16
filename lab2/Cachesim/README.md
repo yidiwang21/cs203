@@ -5,7 +5,6 @@ Yidi Wang, Ruzhuo Wang
 ./run.sh -i [filename] -cs [Total cache size] -bs [Cache block size] -w [Number of ways] -v [victim block number]
 ```
 ## Performance (Hit Rate)
-### Performance: Hit Rate
 ASSOCIATIVITY (with victim cache disabled)
 
 | Trace  | Direct  |  2-way  |  4 way  |Fully Assoc|
