@@ -9,7 +9,7 @@
 
 typedef unsigned char byte;
 
-#define PREFETCH_ENABLED
+// #define PREFETCH_ENABLED
 
 // #define REPEAT_TIME     1000000
 #define SECOND_TO_NS    1000000000
@@ -18,8 +18,8 @@ int main(int argc, char const *argv[])
 {
     cpu_set_t set;
     CPU_ZERO(&set);        // clear cpu mask
-    CPU_SET(16, &set);      // set cpu 0
-    sched_setaffinity(16, sizeof(cpu_set_t), &set);  // 0 is the calling process
+    CPU_SET(5, &set);      // set cpu 0
+    sched_setaffinity(5, sizeof(cpu_set_t), &set);  // 0 is the calling process
 
     if (argc != 4) {
         fprintf(stderr, "# Usage: ./cache_latency [L1 cache] [L2 cache] [L3 cache]");
@@ -30,13 +30,15 @@ int main(int argc, char const *argv[])
 
     const long TRASH_ARRAY_SIZE = L1_CACHE_SIZE + L2_CACHE_SIZE + L3_CACHE_SIZE;
 
-    byte *newArray = (byte *)malloc(L1_CACHE_SIZE * sizeof(byte));    
-    byte *evictArrayL1 = (byte *)malloc(L1_CACHE_SIZE * sizeof(byte));
-    byte *evictArrayL2 = (byte *)malloc(L2_CACHE_SIZE * sizeof(byte));
-    byte *evictArrayL3 = (byte *)malloc(L3_CACHE_SIZE * sizeof(byte));
-    byte *trashArray = (byte *)malloc(TRASH_ARRAY_SIZE * sizeof(byte));
+    int *newArray = (int *)malloc(L1_CACHE_SIZE * sizeof(int));    
+    int *evictArrayL1 = (int *)malloc(L1_CACHE_SIZE * sizeof(int));
+    int *evictArrayL2 = (int *)malloc(L2_CACHE_SIZE * sizeof(int));
+    int *evictArrayL3 = (int *)malloc(L3_CACHE_SIZE * sizeof(int));
+    int *trashArray = (int *)malloc(TRASH_ARRAY_SIZE * sizeof(int));
 
-    long idx = 0;
+    long index = 0;
+    long count = 0;
+    long readValue = 0;
     double latencyMainMem = 0;
     double latencyL1 = 0;
     double latencyL2 = 0;
@@ -45,11 +47,11 @@ int main(int argc, char const *argv[])
     struct timespec start_time, end_time;
 
 
-    memset(newArray, 0xff, L1_CACHE_SIZE * sizeof(byte));
-    memset(evictArrayL1, 0xff, L1_CACHE_SIZE * sizeof(byte));
-    memset(evictArrayL2, 0xff, L2_CACHE_SIZE * sizeof(byte));
-    memset(evictArrayL3, 0xff, L3_CACHE_SIZE * sizeof(byte));
-    memset(trashArray, 0xff, TRASH_ARRAY_SIZE * sizeof(byte)); // let it "clear" L1
+    memset(newArray, 0xff, L1_CACHE_SIZE * sizeof(int));
+    memset(evictArrayL1, 0xff, L1_CACHE_SIZE * sizeof(int));
+    memset(evictArrayL2, 0xff, L2_CACHE_SIZE * sizeof(int));
+    memset(evictArrayL3, 0xff, L3_CACHE_SIZE * sizeof(int));
+    memset(trashArray, 0xff, TRASH_ARRAY_SIZE * sizeof(int)); // let it "clear" L1
 
     // TODO: 
     // 1. access main memory with newArray, then L1 should be full
@@ -60,86 +62,90 @@ int main(int argc, char const *argv[])
     // 6. access newArray, measuring L3 latency
 
     for (long i = 0; i < TRASH_ARRAY_SIZE; i++) {
-        byte clr = trashArray[i];
+        int clr = trashArray[i];
         clr++;
     }
 
     // access main memory
     clock_gettime(CLOCK_REALTIME, &start_time);
-    for (long i = 0; i < L1_CACHE_SIZE; i++) {
-        byte temp = newArray[idx];
-        // just to avoid prefetching the adjacent lines
-        #ifdef PREFETCH_ENABLED
-        idx++;
-        #else
-        idx = (idx + i) & 1023;
-        #endif
+    // for (long i = 0; i < L1_CACHE_SIZE; i++) {
+    //     int temp = newArray[index];
+    //     // just to avoid prefetching the adjacent lines
+    //     #ifdef PREFETCH_ENABLED
+    //     index++;
+    //     #else
+    //     index = (index + i) & 1023;
+    //     #endif
+    // }
+    index = 0;
+    count = 0;
+    while (index < L1_CACHE_SIZE) {
+        int tmp = newArray[index];               //Access Value from L2
+        index = (index + tmp + ((index & 4) ? 28 : 36));   // on average this should give 32 element skips, with changing strides
+        count++;                                           //divide overall time by this 
     }
     clock_gettime(CLOCK_REALTIME, &end_time);
     // latencyMainMem = ((end_time.tv_sec - start_time.tv_sec) * SECOND_TO_NS + (end_time.tv_nsec - start_time.tv_nsec)) / L1_CACHE_SIZE;
     latencyMainMem = (end_time.tv_sec - start_time.tv_sec) * SECOND_TO_NS + (end_time.tv_nsec - start_time.tv_nsec);
-    latencyMainMem /= L1_CACHE_SIZE;
+    latencyMainMem /= count;
     printf("Main memory latency: %f\n", latencyMainMem);
 
     // access L1 cache
-    idx = 0;
     clock_gettime(CLOCK_REALTIME, &start_time);
-    for (long i = 0; i < L1_CACHE_SIZE; i++) {
-        byte temp = newArray[idx];
-        // just to avoid prefetching the adjacent lines
-        #ifdef PREFETCH_ENABLED
-        idx++;
-        #else
-        idx = (idx + i) & 1023;
-        #endif
+    index = 0;
+    count = 0;
+    while (index < L1_CACHE_SIZE) {
+        int tmp = newArray[index];               //Access Value from L2
+        index = (index + tmp + ((index & 4) ? 28 : 36));   // on average this should give 32 element skips, with changing strides
+        count++;                                           //divide overall time by this 
     }
     clock_gettime(CLOCK_REALTIME, &end_time);
     latencyL1 = (end_time.tv_sec - start_time.tv_sec) * SECOND_TO_NS + (end_time.tv_nsec - start_time.tv_nsec);
-    latencyL1 /= L1_CACHE_SIZE;
+    latencyL1 /= count;
     printf("L1 cache latency: %f\n", latencyL1);
 
     // evict values in L1, then the evicted values will go to L2
-    for (long i = 0; i < L1_CACHE_SIZE; i++) {
-        byte evicted_val = evictArrayL1[i];
+    // for (long i = 0; i < L1_CACHE_SIZE; i++) {
+    //     int evicted_val = evictArrayL1[i];
+    // }
+    for(count=0; count < L1_CACHE_SIZE; count++){
+        int read = evictArrayL1[count]; 
+        read++;
+        readValue+=read;               
     }
 
     // access L2 cache
-    idx = 0;
     clock_gettime(CLOCK_REALTIME, &start_time);
-    for (long i = 0; i < L1_CACHE_SIZE; i++) {
-        byte temp = newArray[idx];
-        // just to avoid prefetching the adjacent lines
-        #ifdef PREFETCH_ENABLED
-        idx++;
-        #else
-        idx = (idx + i) & 1023;
-        #endif
+    index = 0;
+    count = 0;
+    while (index < L1_CACHE_SIZE) {
+        int tmp = newArray[index];               //Access Value from L2
+        index = (index + tmp + ((index & 4) ? 28 : 36));   // on average this should give 32 element skips, with changing strides
+        count++;                                           //divide overall time by this 
     }
     clock_gettime(CLOCK_REALTIME, &end_time);
     latencyL2 = (end_time.tv_sec - start_time.tv_sec) * SECOND_TO_NS + (end_time.tv_nsec - start_time.tv_nsec);
-    latencyL2 /= L1_CACHE_SIZE;
+    latencyL2 /= count;
     printf("L2 cache latency: %f\n", latencyL2);
 
     // evict values in L2, then the evicted values will go to L3
-    for (long i = 0; i < L2_CACHE_SIZE; i++) {
-        byte evicted_val = evictArrayL2[i];
+    for(count=0; count < L2_CACHE_SIZE; count++){
+        int read = evictArrayL2[count]; 
+        read++;
+        readValue+=read;               
     }
-
     // access L3 cache
-    idx = 0;
     clock_gettime(CLOCK_REALTIME, &start_time);
-    for (long i = 0; i < L1_CACHE_SIZE; i++) {
-        byte temp = newArray[idx];
-        // just to avoid prefetching the adjacent lines
-        #ifdef PREFETCH_ENABLED
-        idx++;
-        #else
-        idx = (idx + i) & 1023;
-        #endif
+    index = 0;
+    count = 0;
+    while (index < L1_CACHE_SIZE) {
+        int tmp = newArray[index];               //Access Value from L2
+        index = (index + tmp + ((index & 4) ? 28 : 36));   // on average this should give 32 element skips, with changing strides
+        count++;                                           //divide overall time by this 
     }
     clock_gettime(CLOCK_REALTIME, &end_time);
     latencyL3 = (end_time.tv_sec - start_time.tv_sec) * SECOND_TO_NS + (end_time.tv_nsec - start_time.tv_nsec);
-    latencyL3 /= L1_CACHE_SIZE;
+    latencyL3 /= count;
     printf("L3 cache latency: %f\n", latencyL3);
 
     return 0;
