@@ -37,7 +37,9 @@ VICTIM CACHE (with gcc-1M trace)
 
 #### Cache Latencies
 
-| Main memory latency | 19.631031 ns |
-|  L1 cache latency   | 7.632923 ns  |
-|  L2 cache latency   | 11.526963 ns |
-|  L3 cache latency   | 15.453169 ns |
+|   Mem/Cache level   | Latency(ns)|
+|---------------------|------------|
+| Main memory latency |  19.631031 |
+|  L1 cache latency   |  7.632923  |
+|  L2 cache latency   |  11.526963 |
+|  L3 cache latency   |  15.453169 |
