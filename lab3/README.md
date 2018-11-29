@@ -1,7 +1,13 @@
 ### Usage
+OUR CODE
 ```
 ./cache_latency [L1(D) cache size (KB)] [L2 cache size (KB)] [L3 cache size (KB)]
 ```
+OTHER'S TOOL
+```
+./tool.c
+```
+based on [Measuring Cache Latencies](https://stackoverflow.com/questions/21369381/measuring-cache-latencie)
 
 ### Performance
 
