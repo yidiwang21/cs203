@@ -6,6 +6,7 @@
 #include <sched.h>
 #include <stdlib.h>
 #include "unistd.h"
+#include "rdtsc.h"
 
 typedef unsigned char byte;
 
@@ -18,8 +19,8 @@ int main(int argc, char const *argv[])
 {
     cpu_set_t set;
     CPU_ZERO(&set);        // clear cpu mask
-    CPU_SET(5, &set);      // set cpu 0
-    sched_setaffinity(5, sizeof(cpu_set_t), &set);  // 0 is the calling process
+    CPU_SET(0, &set);      // set cpu 0
+    sched_setaffinity(0, sizeof(cpu_set_t), &set);  // 0 is the calling process
 
     if (argc != 4) {
         fprintf(stderr, "# Usage: ./cache_latency [L1 cache] [L2 cache] [L3 cache]");
@@ -39,6 +40,8 @@ int main(int argc, char const *argv[])
     long index = 0;
     long count = 0;
     long readValue = 0;
+    long tick1 = 0;
+    long tick2 = 0;
     double latencyMainMem = 0;
     double latencyL1 = 0;
     double latencyL2 = 0;
@@ -61,9 +64,11 @@ int main(int argc, char const *argv[])
     // 5. evict content in L2, then values in newArray should now be in L3
     // 6. access newArray, measuring L3 latency
 
-    for (long i = 0; i < TRASH_ARRAY_SIZE; i++) {
-        int clr = trashArray[i];
-        clr++;
+    for (int j = 0; j < 5; j++) {
+        for (long i = 0; i < TRASH_ARRAY_SIZE; i++) {
+            int clr = trashArray[i];
+            clr++;
+        }
     }
 
     // access main memory
@@ -88,7 +93,7 @@ int main(int argc, char const *argv[])
     // latencyMainMem = ((end_time.tv_sec - start_time.tv_sec) * SECOND_TO_NS + (end_time.tv_nsec - start_time.tv_nsec)) / L1_CACHE_SIZE;
     latencyMainMem = (end_time.tv_sec - start_time.tv_sec) * SECOND_TO_NS + (end_time.tv_nsec - start_time.tv_nsec);
     latencyMainMem /= count;
-    printf("Main memory latency: %f\n", latencyMainMem);
+    printf("Main memory latency: %f ns\n", latencyMainMem);
 
     // access L1 cache
     clock_gettime(CLOCK_REALTIME, &start_time);
@@ -102,16 +107,18 @@ int main(int argc, char const *argv[])
     clock_gettime(CLOCK_REALTIME, &end_time);
     latencyL1 = (end_time.tv_sec - start_time.tv_sec) * SECOND_TO_NS + (end_time.tv_nsec - start_time.tv_nsec);
     latencyL1 /= count;
-    printf("L1 cache latency: %f\n", latencyL1);
+    printf("L1 cache latency: %f ns\n", latencyL1);
 
     // evict values in L1, then the evicted values will go to L2
     // for (long i = 0; i < L1_CACHE_SIZE; i++) {
     //     int evicted_val = evictArrayL1[i];
     // }
-    for(count=0; count < L1_CACHE_SIZE; count++){
-        int read = evictArrayL1[count]; 
-        read++;
-        readValue+=read;               
+    for (int j = 0; j < 100; j++) {
+        for(count=0; count < L1_CACHE_SIZE; count++){
+            int read = evictArrayL1[count]; 
+            read++;
+            readValue+=read;               
+        }
     }
 
     // access L2 cache
@@ -126,14 +133,17 @@ int main(int argc, char const *argv[])
     clock_gettime(CLOCK_REALTIME, &end_time);
     latencyL2 = (end_time.tv_sec - start_time.tv_sec) * SECOND_TO_NS + (end_time.tv_nsec - start_time.tv_nsec);
     latencyL2 /= count;
-    printf("L2 cache latency: %f\n", latencyL2);
+    printf("L2 cache latency: %f ns\n", latencyL2);
 
     // evict values in L2, then the evicted values will go to L3
-    for(count=0; count < L2_CACHE_SIZE; count++){
-        int read = evictArrayL2[count]; 
-        read++;
-        readValue+=read;               
+    for (int j = 0; j < 100; j++) {
+        for(count=0; count < L2_CACHE_SIZE; count++){
+            int read = evictArrayL2[count]; 
+            read++;
+            readValue+=read;               
+        }
     }
+
     // access L3 cache
     clock_gettime(CLOCK_REALTIME, &start_time);
     index = 0;
@@ -146,7 +156,7 @@ int main(int argc, char const *argv[])
     clock_gettime(CLOCK_REALTIME, &end_time);
     latencyL3 = (end_time.tv_sec - start_time.tv_sec) * SECOND_TO_NS + (end_time.tv_nsec - start_time.tv_nsec);
     latencyL3 /= count;
-    printf("L3 cache latency: %f\n", latencyL3);
+    printf("L3 cache latency: %f ns\n", latencyL3);
 
     return 0;
 }
