@@ -1,7 +1,6 @@
 #ifndef __RDTSC_H_DEFINED__
 #define __RDTSC_H_DEFINED__
 
-
 #if defined(__i386__)
 
 static __inline__ unsigned long long rdtsc(void)
